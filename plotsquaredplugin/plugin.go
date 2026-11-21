@@ -49,6 +49,8 @@ type PlotSquared struct {
 	gens      map[string]*generator.HybridGenerator
 	plotsTmp  map[string]map[plotsquared.PlotId]*plotsquared.Plot
 	clustTmp  map[string][]*plotsquared.PlotCluster
+	statesMu  sync.Mutex
+	states    map[uuid.UUID]*playerState
 	levelOnce sync.Once
 	levelName string
 }
@@ -158,6 +160,9 @@ func (ps *PlotSquared) Enable(s plugin.Server) error {
 			ps.onNewChunk(e.Chunk)
 		}
 	})
+
+	// Register protection & movement listeners
+	ps.registerProtection()
 
 	// Register WorldEdit region restriction manager
 	ps.registerWorldEditHook()

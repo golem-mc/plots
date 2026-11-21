@@ -13,7 +13,7 @@ This repository ports [PlotSquared](https://github.com/IntellectualSites/PlotSqu
 | `internal/config/` | `config/settings.yml`, `config/storage.yml`, `config/worlds.yml` and bundled `.template` archives | `Settings`, `Storage`, `PlotArea` YAML serialization |
 | `internal/storage/` | Pure-Go SQLite (`modernc.org/sqlite`) storage using upstream's exact 13-table schema | `database/SQLManager`, `database/SQLite` |
 | `internal/generator/` | `HybridGenerator` (`plugin.Generator`), road/plot schematic overlays, plot terrain ops (clear, components, merge/unlink roads, copy/swap, road schematics) | `generator/HybridGen`, `HybridPlotWorld`, `ClassicPlotManager`, `HybridPlotManager` |
-| `plotsquaredplugin/` | The `plotsquared` plugin: lifecycle, `GeneratorProvider`, permissions, plot manager, WorldEdit region restrictions | `BukkitPlatform`, `PlotSquared`, `WESubscriber` |
+| `plotsquaredplugin/` | The `plotsquared` plugin: lifecycle, `GeneratorProvider`, permissions, plot manager, WorldEdit region restrictions, protection/movement/entity listeners, Vault economy | `BukkitPlatform`, `PlotSquared`, `WESubscriber`, `listener/*`, `PlotListener` |
 
 ## Decisions
 
