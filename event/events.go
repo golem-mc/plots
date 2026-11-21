@@ -4,7 +4,7 @@ package event
 
 import (
 	"github.com/golem-mc/golem/plugin"
-	"github.com/golem-mc/plotsquared"
+	"github.com/golem-mc/plots"
 	"github.com/google/uuid"
 )
 
@@ -12,27 +12,27 @@ import (
 type PlayerClaimPlotEvent struct {
 	plugin.Cancellable
 	Player plugin.Player
-	Plot   *plotsquared.Plot
+	Plot   *plots.Plot
 	Auto   bool
 }
 
 // PlotDeleteEvent fires before a plot is deleted/unclaimed.
 type PlotDeleteEvent struct {
 	plugin.Cancellable
-	Plot *plotsquared.Plot
+	Plot *plots.Plot
 }
 
 // PlotClearEvent fires before a plot is cleared.
 type PlotClearEvent struct {
 	plugin.Cancellable
-	Plot *plotsquared.Plot
+	Plot *plots.Plot
 }
 
 // PlotMergeEvent fires before plots are merged.
 type PlotMergeEvent struct {
 	plugin.Cancellable
-	Plot      *plotsquared.Plot
-	Direction plotsquared.Direction
+	Plot      *plots.Plot
+	Direction plots.Direction
 	Max       int
 	Player    plugin.Player
 }
@@ -40,8 +40,8 @@ type PlotMergeEvent struct {
 // PlotUnlinkEvent fires before merged plots are unlinked.
 type PlotUnlinkEvent struct {
 	plugin.Cancellable
-	Area   *plotsquared.PlotArea
-	Plot   *plotsquared.Plot
+	Area   *plots.PlotArea
+	Plot   *plots.Plot
 	Reason string
 }
 
@@ -49,15 +49,15 @@ type PlotUnlinkEvent struct {
 type PlotAutoMergeEvent struct {
 	plugin.Cancellable
 	World string
-	Plot  *plotsquared.Plot
-	Plots []plotsquared.PlotId
+	Plot  *plots.Plot
+	Plots []plots.PlotId
 }
 
 // PlotChangeOwnerEvent fires before a plot's owner changes.
 type PlotChangeOwnerEvent struct {
 	plugin.Cancellable
 	Initiator plugin.CommandSender
-	Plot      *plotsquared.Plot
+	Plot      *plots.Plot
 	OldOwner  uuid.UUID
 	NewOwner  uuid.UUID
 	HasOwner  bool
@@ -67,28 +67,28 @@ type PlotChangeOwnerEvent struct {
 type PlayerEnterPlotEvent struct {
 	plugin.Base
 	Player plugin.Player
-	Plot   *plotsquared.Plot
+	Plot   *plots.Plot
 }
 
 // PlayerLeavePlotEvent fires when a player leaves a plot.
 type PlayerLeavePlotEvent struct {
 	plugin.Base
 	Player plugin.Player
-	Plot   *plotsquared.Plot
+	Plot   *plots.Plot
 }
 
 // PlayerTeleportToPlotEvent fires before a player teleports to a plot.
 type PlayerTeleportToPlotEvent struct {
 	plugin.Cancellable
 	Player plugin.Player
-	Plot   *plotsquared.Plot
+	Plot   *plots.Plot
 	Cause  string
 }
 
 // PlotFlagAddEvent fires before a flag is added or changed on a plot.
 type PlotFlagAddEvent struct {
 	plugin.Cancellable
-	Plot  *plotsquared.Plot
+	Plot  *plots.Plot
 	Flag  string
 	Value any
 }
@@ -96,7 +96,7 @@ type PlotFlagAddEvent struct {
 // PlotFlagRemoveEvent fires before a flag is removed from a plot.
 type PlotFlagRemoveEvent struct {
 	plugin.Cancellable
-	Plot *plotsquared.Plot
+	Plot *plots.Plot
 	Flag string
 }
 
@@ -104,21 +104,21 @@ type PlotFlagRemoveEvent struct {
 type PlotRateEvent struct {
 	plugin.Cancellable
 	Player plugin.Player
-	Plot   *plotsquared.Plot
+	Plot   *plots.Plot
 	Rating int
 }
 
 // PlotDoneEvent fires when a plot is marked as done.
 type PlotDoneEvent struct {
 	plugin.Cancellable
-	Plot *plotsquared.Plot
+	Plot *plots.Plot
 }
 
 // PlotComponentSetEvent fires when a plot component (floor, wall, border, etc.) is changed.
 type PlotComponentSetEvent struct {
 	plugin.Base
-	Plot      *plotsquared.Plot
-	Component plotsquared.PlotComponent
+	Plot      *plots.Plot
+	Component plots.PlotComponent
 	Pattern   string
 }
 
@@ -126,7 +126,7 @@ type PlotComponentSetEvent struct {
 type PlayerPlotTrustedEvent struct {
 	plugin.Cancellable
 	Initiator plugin.CommandSender
-	Plot      *plotsquared.Plot
+	Plot      *plots.Plot
 	Target    uuid.UUID
 	Added     bool
 }
@@ -135,7 +135,7 @@ type PlayerPlotTrustedEvent struct {
 type PlayerPlotHelperEvent struct {
 	plugin.Cancellable
 	Initiator plugin.CommandSender
-	Plot      *plotsquared.Plot
+	Plot      *plots.Plot
 	Target    uuid.UUID
 	Added     bool
 }
@@ -144,7 +144,7 @@ type PlayerPlotHelperEvent struct {
 type PlayerPlotDeniedEvent struct {
 	plugin.Cancellable
 	Initiator plugin.CommandSender
-	Plot      *plotsquared.Plot
+	Plot      *plots.Plot
 	Target    uuid.UUID
 	Added     bool
 }
@@ -153,7 +153,7 @@ type PlayerPlotDeniedEvent struct {
 type PlayerBuyPlotEvent struct {
 	plugin.Cancellable
 	Player plugin.Player
-	Plot   *plotsquared.Plot
+	Plot   *plots.Plot
 	Price  float64
 }
 

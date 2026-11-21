@@ -64,7 +64,7 @@ version=$(go list -m github.com/golem-mc/golem | cut -d' ' -f2)
 cat > dev/run/launcher.json <<EOF
 {
   "server": "$version",
-  "plugins": ["../../plotsquaredplugin"],
+  "plugins": ["../../plotsplugin"],
   "updateCheck": false
 }
 EOF
@@ -76,7 +76,7 @@ depends = ["dev:config"]
 run = "go tool launcher -config dev/run/launcher.json check"
 
 [tasks.dev]
-description = "Run a golem server with this checkout of PlotSquared built in, in dev/run"
+description = "Run a golem server with this checkout of plots built in, in dev/run"
 depends = ["dev:config"]
 run = '''
 cd dev/run

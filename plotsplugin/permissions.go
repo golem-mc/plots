@@ -1,4 +1,4 @@
-package plotsquaredplugin
+package plotsplugin
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/golem-mc/golem/plugin"
 )
 
-func (ps *PlotSquared) registerPermissions() {
+func (ps *Plugin) registerPermissions() {
 	perms := ps.Server.Permissions()
 	op := plugin.PermissionDefault{OpLevel: 2}
 	everyone := plugin.PermissionDefault{OpLevel: 0}

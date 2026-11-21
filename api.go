@@ -1,4 +1,4 @@
-package plotsquared
+package plots
 
 import (
 	"github.com/golem-mc/golem/plugin"

@@ -1,41 +1,42 @@
-// Package plotsquaredplugin is the PlotSquared plugin for golem, registered as
-// "plotsquared". It provides the plotsquared.API service, implements
+// Package plotsplugin is the Plots plugin (ported from PlotSquared) for golem,
+// registered as "plots". It provides the plots.API service, implements
 // plugin.GeneratorProvider for plot worlds, manages plots and plot areas,
 // enforces protection rules, and registers /plot commands.
 //
-// Other plugins that want only the API import github.com/golem-mc/plotsquared.
-package plotsquaredplugin
+// Other plugins that want only the API import github.com/golem-mc/plots.
+package plotsplugin
 
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/golem-mc/golem/plugin"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/event"
-	"github.com/golem-mc/plotsquared/internal/config"
-	"github.com/golem-mc/plotsquared/internal/generator"
-	"github.com/golem-mc/plotsquared/internal/lang"
-	"github.com/golem-mc/plotsquared/internal/storage"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/event"
+	"github.com/golem-mc/plots/internal/config"
+	"github.com/golem-mc/plots/internal/generator"
+	"github.com/golem-mc/plots/internal/lang"
+	"github.com/golem-mc/plots/internal/storage"
 	"github.com/google/uuid"
 
-	// PlotSquared depends on WorldEdit for block parsing, schematics, and region hooks.
+	// Plots depends on WorldEdit for block parsing, schematics, and region hooks.
 	_ "github.com/golem-mc/worldedit"
 )
 
 func init() {
-	plugin.Register("plotsquared", &PlotSquared{},
+	plugin.Register("plots", &Plugin{},
 		plugin.Depends("worldedit"),
 		plugin.SoftDepends("vault", "luckperms"),
 		plugin.LoadBefore("multiverse-core"),
 	)
 }
 
-// PlotSquared is the live golem plugin instance.
-type PlotSquared struct {
+// Plugin is the live golem plugin instance.
+type Plugin struct {
 	Server   plugin.Server
 	Log      *slog.Logger
 	Settings *config.Settings
@@ -44,46 +45,71 @@ type PlotSquared struct {
 	Lang     *lang.Catalog
 	DB       *storage.DB
 
-	mu        sync.RWMutex
-	areas     map[string][]*plotsquared.PlotArea // keyed by lowercase worldName
-	gens      map[string]*generator.HybridGenerator
-	plotsTmp  map[string]map[plotsquared.PlotId]*plotsquared.Plot
-	clustTmp  map[string][]*plotsquared.PlotCluster
-	statesMu  sync.Mutex
-	states    map[uuid.UUID]*playerState
-	levelOnce sync.Once
-	levelName string
+	mu         sync.RWMutex
+	areas      map[string][]*plots.PlotArea // keyed by lowercase worldName
+	gens       map[string]*generator.HybridGenerator
+	plotsTmp   map[string]map[plots.PlotId]*plots.Plot
+	clustTmp   map[string][]*plots.PlotCluster
+	statesMu   sync.Mutex
+	states     map[uuid.UUID]*playerState
+	levelOnce  sync.Once
+	levelName  string
+	legacyOnce sync.Once
 }
 
 var current struct {
 	sync.Mutex
-	ps *PlotSquared
+	ps *Plugin
 }
 
-// Get returns the currently enabled PlotSquared plugin instance, for tests.
-func Get() (*PlotSquared, bool) {
+// Get returns the currently enabled Plots plugin instance, for tests.
+func Get() (*Plugin, bool) {
 	current.Lock()
 	defer current.Unlock()
 	return current.ps, current.ps != nil
 }
 
+// CheckLegacyDataDir logs a one-line migration hint when plugins/PlotSquared
+// exists on disk and plugins/plots does not.
+func CheckLegacyDataDir(pluginsDir string, log *slog.Logger) bool {
+	if _, err := os.Stat(filepath.Join(pluginsDir, "plots")); err == nil {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(pluginsDir, "PlotSquared"))
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	if log != nil {
+		log.Info("found plugins/PlotSquared without plugins/plots; copy plugins/PlotSquared to plugins/plots to migrate your existing PlotSquared data")
+	}
+	return true
+}
+
+func (ps *Plugin) checkLegacyDataDir() {
+	ps.legacyOnce.Do(func() {
+		CheckLegacyDataDir("plugins", ps.Log)
+	})
+}
+
 // Load runs before worlds load (plugin.Loader), loading configs early so Generator()
 // can resolve world settings from worlds.yml immediately.
-func (ps *PlotSquared) Load(s plugin.Server) error {
+func (ps *Plugin) Load(s plugin.Server) error {
 	ps.Server = s
 	ps.Log = s.Logger()
-	ps.areas = make(map[string][]*plotsquared.PlotArea)
+	ps.checkLegacyDataDir()
+	ps.areas = make(map[string][]*plots.PlotArea)
 	ps.gens = make(map[string]*generator.HybridGenerator)
 	return ps.loadConfigs()
 }
 
-// Enable initializes PlotSquared: config, lang, SQLite DB, plot areas, worlds,
+// Enable initializes Plots: config, lang, SQLite DB, plot areas, worlds,
 // permissions, WorldEdit restrictions, and API service.
-func (ps *PlotSquared) Enable(s plugin.Server) error {
+func (ps *Plugin) Enable(s plugin.Server) error {
 	ps.Server = s
 	ps.Log = s.Logger()
+	ps.checkLegacyDataDir()
 	if ps.areas == nil {
-		ps.areas = make(map[string][]*plotsquared.PlotArea)
+		ps.areas = make(map[string][]*plots.PlotArea)
 	}
 	if ps.gens == nil {
 		ps.gens = make(map[string]*generator.HybridGenerator)
@@ -167,19 +193,19 @@ func (ps *PlotSquared) Enable(s plugin.Server) error {
 	// Register WorldEdit region restriction manager
 	ps.registerWorldEditHook()
 
-	// Expose public plotsquared.API service
-	plugin.Provide[plotsquared.API](s, &apiService{ps: ps}, 0)
+	// Expose public plots.API service
+	plugin.Provide[plots.API](s, &apiService{ps: ps}, 0)
 
 	current.Lock()
 	current.ps = ps
 	current.Unlock()
 
-	ps.Log.Info("PlotSquared enabled", "areas", len(ps.PlotAreas()))
+	ps.Log.Info("Plots enabled", "areas", len(ps.PlotAreas()))
 	return nil
 }
 
 // Disable cleanly closes the SQLite database and clears runtime state.
-func (ps *PlotSquared) Disable() {
+func (ps *Plugin) Disable() {
 	if ps.DB != nil {
 		if err := ps.DB.Close(); err != nil {
 			ps.Log.Error("error closing sqlite db", "err", err)
@@ -193,9 +219,9 @@ func (ps *PlotSquared) Disable() {
 	current.Unlock()
 }
 
-// Generator implements plugin.GeneratorProvider, resolving "PlotSquared[:spec]"
+// Generator implements plugin.GeneratorProvider, resolving "plots[:spec]"
 // for world managers (e.g. Multiverse) or Server.Generator.
-func (ps *PlotSquared) Generator(world plugin.Key, spec string) (plugin.Generator, error) {
+func (ps *Plugin) Generator(world plugin.Key, spec string) (plugin.Generator, error) {
 	worldName := ps.WorldNameForKey(world)
 	area := ps.ensureWorldArea(worldName, spec)
 	if spec != "" {
@@ -212,7 +238,7 @@ func (ps *PlotSquared) Generator(world plugin.Key, spec string) (plugin.Generato
 	return gen, nil
 }
 
-func (ps *PlotSquared) loadConfigs() error {
+func (ps *Plugin) loadConfigs() error {
 	dataDir := ps.Server.DataDir()
 	settings, err := config.LoadSettings(dataDir)
 	if err != nil {
@@ -234,7 +260,7 @@ func (ps *PlotSquared) loadConfigs() error {
 	return nil
 }
 
-func (ps *PlotSquared) initConfiguredWorlds() {
+func (ps *Plugin) initConfiguredWorlds() {
 	if ps.Worlds == nil {
 		return
 	}
@@ -247,7 +273,7 @@ func (ps *PlotSquared) initConfiguredWorlds() {
 		// If this is a custom plot world (not yet loaded), load it with our HybridGenerator.
 		if _, loaded := ps.WrapWorld(worldName); !loaded {
 			areas := ps.PlotAreasInWorld(worldName)
-			if len(areas) > 0 && areas[0].Type == plotsquared.AreaNormal {
+			if len(areas) > 0 && areas[0].Type == plots.AreaNormal {
 				gen := ps.generatorForArea(areas[0])
 				key := ps.WorldKeyForName(worldName)
 				if _, err := ps.Server.CreateWorld(plugin.WorldOptions{
@@ -262,9 +288,9 @@ func (ps *PlotSquared) initConfiguredWorlds() {
 	}
 }
 
-func (ps *PlotSquared) registerAreasFromWorldConfig(worldName string, wc *config.WorldConfig) {
+func (ps *Plugin) registerAreasFromWorldConfig(worldName string, wc *config.WorldConfig) {
 	low := strings.ToLower(worldName)
-	var areas []*plotsquared.PlotArea
+	var areas []*plots.PlotArea
 	if len(wc.Areas) > 0 {
 		for areaKey, subWC := range wc.Areas {
 			id, minID, maxID, ok := config.ParseAreaKey(areaKey)
@@ -274,7 +300,7 @@ func (ps *PlotSquared) registerAreasFromWorldConfig(worldName string, wc *config
 			}
 			m1, m2 := minID, maxID
 			a := subWC.ToPlotArea(worldName, id, &m1, &m2)
-			a.Type = plotsquared.AreaPartial
+			a.Type = plots.AreaPartial
 			areas = append(areas, a)
 		}
 	} else {
@@ -291,7 +317,7 @@ func (ps *PlotSquared) registerAreasFromWorldConfig(worldName string, wc *config
 	}
 }
 
-func (ps *PlotSquared) attachLoadedData(a *plotsquared.PlotArea) {
+func (ps *Plugin) attachLoadedData(a *plots.PlotArea) {
 	fullID := a.FullID()
 	if ps.plotsTmp != nil {
 		if m, ok := ps.plotsTmp[fullID]; ok {
@@ -309,7 +335,7 @@ func (ps *PlotSquared) attachLoadedData(a *plotsquared.PlotArea) {
 	}
 }
 
-func (ps *PlotSquared) ensureWorldArea(worldName, _ string) *plotsquared.PlotArea {
+func (ps *Plugin) ensureWorldArea(worldName, _ string) *plots.PlotArea {
 	low := strings.ToLower(worldName)
 	ps.mu.RLock()
 	existing := ps.areas[low]
@@ -318,23 +344,23 @@ func (ps *PlotSquared) ensureWorldArea(worldName, _ string) *plotsquared.PlotAre
 		return existing[0]
 	}
 
-	var area *plotsquared.PlotArea
+	var area *plots.PlotArea
 	if ps.Worlds != nil {
 		if wc, ok := ps.Worlds.Worlds[worldName]; ok && wc != nil {
 			area = wc.ToPlotArea(worldName, "", nil, nil)
 		}
 	}
 	if area == nil {
-		area = plotsquared.DefaultPlotArea(worldName, "")
+		area = plots.DefaultPlotArea(worldName, "")
 	}
 	ps.mu.Lock()
-	ps.areas[low] = []*plotsquared.PlotArea{area}
+	ps.areas[low] = []*plots.PlotArea{area}
 	ps.mu.Unlock()
 	ps.attachLoadedData(area)
 	return area
 }
 
-func (ps *PlotSquared) generatorForArea(area *plotsquared.PlotArea) *generator.HybridGenerator {
+func (ps *Plugin) generatorForArea(area *plots.PlotArea) *generator.HybridGenerator {
 	key := strings.ToLower(area.FullID())
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -350,7 +376,7 @@ func (ps *PlotSquared) generatorForArea(area *plotsquared.PlotArea) *generator.H
 	return g
 }
 
-func (ps *PlotSquared) onWorldLoad(w plugin.World) {
+func (ps *Plugin) onWorldLoad(w plugin.World) {
 	name := ps.WorldName(w)
 	if ps.Worlds == nil {
 		return
@@ -362,18 +388,18 @@ func (ps *PlotSquared) onWorldLoad(w plugin.World) {
 	}
 }
 
-func (ps *PlotSquared) onWorldUnload(_ plugin.World) {
+func (ps *Plugin) onWorldUnload(_ plugin.World) {
 	// Keep area definitions loaded in memory so offline queries and reloads stay consistent.
 }
 
-func (ps *PlotSquared) onNewChunk(chunk plugin.Chunk) {
+func (ps *Plugin) onNewChunk(chunk plugin.Chunk) {
 	w := chunk.World()
 	if w == nil {
 		return
 	}
 	areas := ps.PlotAreasInWorld(ps.WorldName(w))
 	for _, a := range areas {
-		if a.Type == plotsquared.AreaAugmented || a.Type == plotsquared.AreaPartial {
+		if a.Type == plots.AreaAugmented || a.Type == plots.AreaPartial {
 			gen := ps.generatorForArea(a)
 			gen.AugmentChunk(w, chunk)
 		}
@@ -381,7 +407,7 @@ func (ps *PlotSquared) onNewChunk(chunk plugin.Chunk) {
 }
 
 // LevelName returns the server's overworld level name (e.g. "world").
-func (ps *PlotSquared) LevelName() string {
+func (ps *Plugin) LevelName() string {
 	ps.levelOnce.Do(func() {
 		if ps.Server != nil {
 			ps.levelName = filepath.Base(ps.Server.WorldFolder(plugin.MinecraftKey("overworld")))
@@ -394,7 +420,7 @@ func (ps *PlotSquared) LevelName() string {
 }
 
 // WorldNameForKey maps a golem dimension key to Bukkit's world name convention.
-func (ps *PlotSquared) WorldNameForKey(key plugin.Key) string {
+func (ps *Plugin) WorldNameForKey(key plugin.Key) string {
 	if key.Namespace != "minecraft" && key.Namespace != "" {
 		return key.Namespace + "_" + key.Path
 	}
@@ -411,7 +437,7 @@ func (ps *PlotSquared) WorldNameForKey(key plugin.Key) string {
 }
 
 // WorldKeyForName maps a Bukkit-style world name to a golem dimension key.
-func (ps *PlotSquared) WorldKeyForName(name string) plugin.Key {
+func (ps *Plugin) WorldKeyForName(name string) plugin.Key {
 	lvl := ps.LevelName()
 	switch {
 	case strings.EqualFold(name, lvl):
@@ -427,16 +453,16 @@ func (ps *PlotSquared) WorldKeyForName(name string) plugin.Key {
 	return plugin.MinecraftKey(strings.ToLower(name))
 }
 
-// WorldName implements plotsquared.API.
-func (ps *PlotSquared) WorldName(w plugin.World) string {
+// WorldName implements plots.API.
+func (ps *Plugin) WorldName(w plugin.World) string {
 	if w == nil {
 		return ""
 	}
 	return ps.WorldNameForKey(w.Key())
 }
 
-// WrapWorld implements plotsquared.API.
-func (ps *PlotSquared) WrapWorld(worldName string) (plugin.World, bool) {
+// WrapWorld implements plots.API.
+func (ps *Plugin) WrapWorld(worldName string) (plugin.World, bool) {
 	if ps.Server == nil {
 		return nil, false
 	}
@@ -448,29 +474,29 @@ func (ps *PlotSquared) WrapWorld(worldName string) (plugin.World, bool) {
 	return nil, false
 }
 
-// PlotAreas implements plotsquared.API.
-func (ps *PlotSquared) PlotAreas() []*plotsquared.PlotArea {
+// PlotAreas implements plots.API.
+func (ps *Plugin) PlotAreas() []*plots.PlotArea {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
-	var out []*plotsquared.PlotArea
+	var out []*plots.PlotArea
 	for _, list := range ps.areas {
 		out = append(out, list...)
 	}
 	return out
 }
 
-// PlotAreasInWorld implements plotsquared.API.
-func (ps *PlotSquared) PlotAreasInWorld(worldName string) []*plotsquared.PlotArea {
+// PlotAreasInWorld implements plots.API.
+func (ps *Plugin) PlotAreasInWorld(worldName string) []*plots.PlotArea {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 	list := ps.areas[strings.ToLower(worldName)]
-	out := make([]*plotsquared.PlotArea, len(list))
+	out := make([]*plots.PlotArea, len(list))
 	copy(out, list)
 	return out
 }
 
-// PlotAreaAt implements plotsquared.API.
-func (ps *PlotSquared) PlotAreaAt(loc plugin.Location) *plotsquared.PlotArea {
+// PlotAreaAt implements plots.API.
+func (ps *Plugin) PlotAreaAt(loc plugin.Location) *plots.PlotArea {
 	if loc.World == nil {
 		return nil
 	}
@@ -484,7 +510,7 @@ func (ps *PlotSquared) PlotAreaAt(loc plugin.Location) *plotsquared.PlotArea {
 }
 
 // PlotAreaAtBlock returns the PlotArea covering (w, pos).
-func (ps *PlotSquared) PlotAreaAtBlock(w plugin.World, pos plugin.BlockPos) *plotsquared.PlotArea {
+func (ps *Plugin) PlotAreaAtBlock(w plugin.World, pos plugin.BlockPos) *plots.PlotArea {
 	if w == nil {
 		return nil
 	}
@@ -496,8 +522,8 @@ func (ps *PlotSquared) PlotAreaAtBlock(w plugin.World, pos plugin.BlockPos) *plo
 	return nil
 }
 
-// PlotAt implements plotsquared.API.
-func (ps *PlotSquared) PlotAt(loc plugin.Location) *plotsquared.Plot {
+// PlotAt implements plots.API.
+func (ps *Plugin) PlotAt(loc plugin.Location) *plots.Plot {
 	if loc.World == nil {
 		return nil
 	}
@@ -505,7 +531,7 @@ func (ps *PlotSquared) PlotAt(loc plugin.Location) *plotsquared.Plot {
 }
 
 // PlotAtBlock returns the Plot at (w, pos) (including merged roads), or nil.
-func (ps *PlotSquared) PlotAtBlock(w plugin.World, pos plugin.BlockPos) *plotsquared.Plot {
+func (ps *Plugin) PlotAtBlock(w plugin.World, pos plugin.BlockPos) *plots.Plot {
 	area := ps.PlotAreaAtBlock(w, pos)
 	if area == nil {
 		return nil
@@ -513,9 +539,9 @@ func (ps *PlotSquared) PlotAtBlock(w plugin.World, pos plugin.BlockPos) *plotsqu
 	return area.PlotAt(pos.X, pos.Z)
 }
 
-// PlotsByOwner implements plotsquared.API.
-func (ps *PlotSquared) PlotsByOwner(owner uuid.UUID) []*plotsquared.Plot {
-	var out []*plotsquared.Plot
+// PlotsByOwner implements plots.API.
+func (ps *Plugin) PlotsByOwner(owner uuid.UUID) []*plots.Plot {
+	var out []*plots.Plot
 	for _, a := range ps.PlotAreas() {
 		out = append(out, a.PlotsByOwner(owner)...)
 	}
@@ -523,7 +549,7 @@ func (ps *PlotSquared) PlotsByOwner(owner uuid.UUID) []*plotsquared.Plot {
 }
 
 // PlotAreaByName finds a PlotArea by world name or "world;id" or partial area id.
-func (ps *PlotSquared) PlotAreaByName(name string) *plotsquared.PlotArea {
+func (ps *Plugin) PlotAreaByName(name string) *plots.PlotArea {
 	if name == "" {
 		return nil
 	}
@@ -535,17 +561,17 @@ func (ps *PlotSquared) PlotAreaByName(name string) *plotsquared.PlotArea {
 	return nil
 }
 
-type apiService struct{ ps *PlotSquared }
+type apiService struct{ ps *Plugin }
 
-func (a *apiService) PlotAreas() []*plotsquared.PlotArea { return a.ps.PlotAreas() }
-func (a *apiService) PlotAreasInWorld(worldName string) []*plotsquared.PlotArea {
+func (a *apiService) PlotAreas() []*plots.PlotArea { return a.ps.PlotAreas() }
+func (a *apiService) PlotAreasInWorld(worldName string) []*plots.PlotArea {
 	return a.ps.PlotAreasInWorld(worldName)
 }
-func (a *apiService) PlotAreaAt(loc plugin.Location) *plotsquared.PlotArea {
+func (a *apiService) PlotAreaAt(loc plugin.Location) *plots.PlotArea {
 	return a.ps.PlotAreaAt(loc)
 }
-func (a *apiService) PlotAt(loc plugin.Location) *plotsquared.Plot { return a.ps.PlotAt(loc) }
-func (a *apiService) PlotsByOwner(owner uuid.UUID) []*plotsquared.Plot {
+func (a *apiService) PlotAt(loc plugin.Location) *plots.Plot { return a.ps.PlotAt(loc) }
+func (a *apiService) PlotsByOwner(owner uuid.UUID) []*plots.Plot {
 	return a.ps.PlotsByOwner(owner)
 }
 func (a *apiService) WorldName(w plugin.World) string { return a.ps.WorldName(w) }

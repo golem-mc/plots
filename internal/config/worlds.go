@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/golem-mc/golem/plugin"
-	"github.com/golem-mc/plotsquared"
+	"github.com/golem-mc/plots"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -237,8 +237,8 @@ func SaveWorlds(dataDir string, wf *WorldsFile) error {
 }
 
 // ToPlotArea converts a WorldConfig into a live PlotArea.
-func (wc *WorldConfig) ToPlotArea(worldName, id string, minID, maxID *plotsquared.PlotId) *plotsquared.PlotArea {
-	a := plotsquared.DefaultPlotArea(worldName, id)
+func (wc *WorldConfig) ToPlotArea(worldName, id string, minID, maxID *plots.PlotId) *plots.PlotArea {
+	a := plots.DefaultPlotArea(worldName, id)
 	a.Min = minID
 	a.Max = maxID
 	if wc.Plot.Size > 0 {
@@ -260,22 +260,22 @@ func (wc *WorldConfig) ToPlotArea(worldName, id string, minID, maxID *plotsquare
 	a.PlaceTopBlock = wc.Wall.PlaceTopBlock
 	a.ComponentBelowBedrock = wc.World.ComponentBelowBedrock
 
-	if b, err := plotsquared.ParseBlockBucket(wc.Plot.Filling); err == nil {
+	if b, err := plots.ParseBlockBucket(wc.Plot.Filling); err == nil {
 		a.MainBlock = b
 	}
-	if b, err := plotsquared.ParseBlockBucket(wc.Plot.Floor); err == nil {
+	if b, err := plots.ParseBlockBucket(wc.Plot.Floor); err == nil {
 		a.TopBlock = b
 	}
-	if b, err := plotsquared.ParseBlockBucket(wc.Wall.Block); err == nil {
+	if b, err := plots.ParseBlockBucket(wc.Wall.Block); err == nil {
 		a.WallBlock = b
 	}
-	if b, err := plotsquared.ParseBlockBucket(wc.Wall.BlockClaimed); err == nil {
+	if b, err := plots.ParseBlockBucket(wc.Wall.BlockClaimed); err == nil {
 		a.ClaimedWallBlock = b
 	}
-	if b, err := plotsquared.ParseBlockBucket(wc.Wall.Filling); err == nil {
+	if b, err := plots.ParseBlockBucket(wc.Wall.Filling); err == nil {
 		a.WallFilling = b
 	}
-	if b, err := plotsquared.ParseBlockBucket(wc.Road.Block); err == nil {
+	if b, err := plots.ParseBlockBucket(wc.Road.Block); err == nil {
 		a.RoadBlock = b
 	}
 
@@ -316,8 +316,8 @@ func (wc *WorldConfig) ToPlotArea(worldName, id string, minID, maxID *plotsquare
 		a.BorderSize = wc.World.BorderSize
 	}
 
-	a.DefaultHome, _ = plotsquared.ParseBlockLoc(wc.Home.Default)
-	a.NonmemberHome, _ = plotsquared.ParseBlockLoc(wc.Home.Nonmembers)
+	a.DefaultHome, _ = plots.ParseBlockLoc(wc.Home.Default)
+	a.NonmemberHome, _ = plots.ParseBlockLoc(wc.Home.Nonmembers)
 	a.HomeAllowNonmember = strings.EqualFold(wc.Home.Default, wc.Home.Nonmembers)
 
 	a.UseEconomy = wc.Economy.Use
@@ -340,10 +340,10 @@ func (wc *WorldConfig) ToPlotArea(worldName, id string, minID, maxID *plotsquare
 	}
 
 	if wc.Generator != nil {
-		if t, ok := plotsquared.ParsePlotAreaType(wc.Generator.Type); ok {
+		if t, ok := plots.ParsePlotAreaType(wc.Generator.Type); ok {
 			a.Type = t
 		}
-		if tr, ok := plotsquared.ParsePlotAreaTerrainType(wc.Generator.Terrain); ok {
+		if tr, ok := plots.ParsePlotAreaTerrainType(wc.Generator.Terrain); ok {
 			a.Terrain = tr
 		}
 	}
@@ -357,7 +357,7 @@ func (wc *WorldConfig) ToPlotArea(worldName, id string, minID, maxID *plotsquare
 }
 
 // WorldConfigFromArea creates a serializable WorldConfig from a PlotArea.
-func WorldConfigFromArea(a *plotsquared.PlotArea) *WorldConfig {
+func WorldConfigFromArea(a *plots.PlotArea) *WorldConfig {
 	wc := DefaultWorldConfig()
 	wc.Plot.Size = a.PlotWidth
 	wc.Plot.Height = a.PlotHeight
@@ -413,7 +413,7 @@ func WorldConfigFromArea(a *plotsquared.PlotArea) *WorldConfig {
 		"merge": a.PriceMerge,
 		"sell":  a.PriceSell,
 	}
-	if a.Type != plotsquared.AreaNormal || a.Terrain != plotsquared.TerrainNone {
+	if a.Type != plots.AreaNormal || a.Terrain != plots.TerrainNone {
 		wc.Generator = &GeneratorSection{
 			Type:    a.Type.String(),
 			Terrain: a.Terrain.String(),
@@ -423,7 +423,7 @@ func WorldConfigFromArea(a *plotsquared.PlotArea) *WorldConfig {
 }
 
 // ParseAreaKey parses upstream's partial area map key "<id>-<minX>;<minY>-<maxX>;<maxY>".
-func ParseAreaKey(key string) (id string, minID, maxID plotsquared.PlotId, ok bool) {
+func ParseAreaKey(key string) (id string, minID, maxID plots.PlotId, ok bool) {
 	// Split on '-' not preceded by ';' (since plot IDs can be negative, e.g. area--1;-1-1;1).
 	var parts []string
 	start := 0
@@ -435,22 +435,22 @@ func ParseAreaKey(key string) (id string, minID, maxID plotsquared.PlotId, ok bo
 	}
 	parts = append(parts, key[start:])
 	if len(parts) != 3 {
-		return "", plotsquared.PlotId{}, plotsquared.PlotId{}, false
+		return "", plots.PlotId{}, plots.PlotId{}, false
 	}
-	p1, ok1 := plotsquared.ParsePlotId(parts[1])
-	p2, ok2 := plotsquared.ParsePlotId(parts[2])
+	p1, ok1 := plots.ParsePlotId(parts[1])
+	p2, ok2 := plots.ParsePlotId(parts[2])
 	if !ok1 || !ok2 {
-		return "", plotsquared.PlotId{}, plotsquared.PlotId{}, false
+		return "", plots.PlotId{}, plots.PlotId{}, false
 	}
 	return parts[0], p1, p2, true
 }
 
 // FormatAreaKey formats a partial area map key for worlds.yml.
-func FormatAreaKey(id string, minID, maxID plotsquared.PlotId) string {
+func FormatAreaKey(id string, minID, maxID plots.PlotId) string {
 	return fmt.Sprintf("%s-%s-%s", id, minID.String(), maxID.String())
 }
 
-func applyYAMLFlags(fc *plotsquared.FlagContainer, raw map[string]any) {
+func applyYAMLFlags(fc *plots.FlagContainer, raw map[string]any) {
 	if fc == nil || len(raw) == 0 {
 		return
 	}

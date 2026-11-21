@@ -1,4 +1,4 @@
-package plotsquaredplugin
+package plotsplugin
 
 import (
 	"fmt"
@@ -6,16 +6,16 @@ import (
 
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/registry"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/internal/generator"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/internal/generator"
 )
 
-func (ps *PlotSquared) registerPlayerListeners() {
+func (ps *Plugin) registerPlayerListeners() {
 	ps.registerPlayerInteractListeners()
 	ps.registerPlayerSessionListeners()
 }
 
-func (ps *PlotSquared) registerPlayerInteractListeners() {
+func (ps *Plugin) registerPlayerInteractListeners() {
 	s := ps.Server
 	opts := plugin.ListenOptions{Priority: plugin.High, IgnoreCancelled: true}
 
@@ -201,7 +201,7 @@ func (ps *PlotSquared) registerPlayerInteractListeners() {
 	}, opts)
 }
 
-func (ps *PlotSquared) registerPlayerSessionListeners() {
+func (ps *Plugin) registerPlayerSessionListeners() {
 	s := ps.Server
 	opts := plugin.ListenOptions{Priority: plugin.High, IgnoreCancelled: true}
 
@@ -447,7 +447,7 @@ func isInteractiveBlock(b registry.Block) bool {
 		b == registry.BlockRespawnAnchor
 }
 
-func canInteractEntity(plot *plotsquared.Plot, ent plugin.Entity) bool {
+func canInteractEntity(plot *plots.Plot, ent plugin.Entity) bool {
 	switch e := ent.(type) {
 	case plugin.Player:
 		return plot.FlagBool("player-interact")

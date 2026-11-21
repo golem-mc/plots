@@ -1,5 +1,5 @@
 // Package config manages PlotSquared's YAML configuration files under
-// plugins/plotsquared/config/ (settings.yml, storage.yml, worlds.yml) and
+// plugins/plots/config/ (settings.yml, storage.yml, worlds.yml) and
 // embedded plot world templates.
 package config
 

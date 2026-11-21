@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/golem-mc/plotsquared"
+	"github.com/golem-mc/plots"
 )
 
 func TestConfigRoundTripAndTemplates(t *testing.T) {
@@ -60,7 +60,7 @@ func TestConfigRoundTripAndTemplates(t *testing.T) {
 	}
 
 	id, minID, maxID, ok := ParseAreaKey("town--2;-3-4;5")
-	if !ok || id != "town" || minID != (plotsquared.PlotId{X: -2, Y: -3}) || maxID != (plotsquared.PlotId{X: 4, Y: 5}) {
+	if !ok || id != "town" || minID != (plots.PlotId{X: -2, Y: -3}) || maxID != (plots.PlotId{X: 4, Y: 5}) {
 		t.Errorf("ParseAreaKey failed: %q %v %v %v", id, minID, maxID, ok)
 	}
 

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golem-mc/plotsquared"
+	"github.com/golem-mc/plots"
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
@@ -165,12 +165,12 @@ func (d *DB) createTables() error {
 }
 
 // LoadPlots loads all plots grouped by area FullID (`world` column in `plot`).
-func (d *DB) LoadPlots() (map[string]map[plotsquared.PlotId]*plotsquared.Plot, error) {
+func (d *DB) LoadPlots() (map[string]map[plots.PlotId]*plots.Plot, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	byArea := make(map[string]map[plotsquared.PlotId]*plotsquared.Plot)
-	byID := make(map[int64]*plotsquared.Plot)
+	byArea := make(map[string]map[plots.PlotId]*plots.Plot)
+	byID := make(map[int64]*plots.Plot)
 
 	rows, err := d.sql.Query(`SELECT id, plot_id_x, plot_id_z, owner, world, timestamp FROM ` + d.t("plot"))
 	if err != nil {
@@ -189,13 +189,13 @@ func (d *DB) LoadPlots() (map[string]map[plotsquared.PlotId]*plotsquared.Plot, e
 			return nil, err
 		}
 		owner := parseStoredUUID(ownerS)
-		p := plotsquared.NewPlot(nil, plotsquared.PlotId{X: px, Y: pz}, owner)
+		p := plots.NewPlot(nil, plots.PlotId{X: px, Y: pz}, owner)
 		p.DBID = id
 		p.Timestamp = parseTimestampMillis(rawTime)
 
 		m := byArea[areaID]
 		if m == nil {
-			m = make(map[plotsquared.PlotId]*plotsquared.Plot)
+			m = make(map[plots.PlotId]*plots.Plot)
 			byArea[areaID] = m
 		}
 		m[p.ID] = p
@@ -210,19 +210,19 @@ func (d *DB) LoadPlots() (map[string]map[plotsquared.PlotId]*plotsquared.Plot, e
 		return nil, err
 	}
 	// Load trusted (stored in `plot_helpers` in upstream SQL schema!)
-	if err := d.loadTierLocked(byID, "plot_helpers", func(p *plotsquared.Plot, u uuid.UUID) {
+	if err := d.loadTierLocked(byID, "plot_helpers", func(p *plots.Plot, u uuid.UUID) {
 		p.Trusted[u] = struct{}{}
 	}); err != nil {
 		return nil, err
 	}
 	// Load members (stored in `plot_trusted` in upstream SQL schema!)
-	if err := d.loadTierLocked(byID, "plot_trusted", func(p *plotsquared.Plot, u uuid.UUID) {
+	if err := d.loadTierLocked(byID, "plot_trusted", func(p *plots.Plot, u uuid.UUID) {
 		p.Members[u] = struct{}{}
 	}); err != nil {
 		return nil, err
 	}
 	// Load denied
-	if err := d.loadTierLocked(byID, "plot_denied", func(p *plotsquared.Plot, u uuid.UUID) {
+	if err := d.loadTierLocked(byID, "plot_denied", func(p *plots.Plot, u uuid.UUID) {
 		p.Denied[u] = struct{}{}
 	}); err != nil {
 		return nil, err
@@ -243,7 +243,7 @@ func (d *DB) LoadPlots() (map[string]map[plotsquared.PlotId]*plotsquared.Plot, e
 	return byArea, nil
 }
 
-func (d *DB) loadRatingsLocked(byID map[int64]*plotsquared.Plot) error {
+func (d *DB) loadRatingsLocked(byID map[int64]*plots.Plot) error {
 	rows, err := d.sql.Query(`SELECT plot_plot_id, player, rating FROM ` + d.t("plot_rating"))
 	if err != nil {
 		return err
@@ -268,7 +268,7 @@ func (d *DB) loadRatingsLocked(byID map[int64]*plotsquared.Plot) error {
 	return rows.Err()
 }
 
-func (d *DB) loadTierLocked(byID map[int64]*plotsquared.Plot, table string, add func(*plotsquared.Plot, uuid.UUID)) error {
+func (d *DB) loadTierLocked(byID map[int64]*plots.Plot, table string, add func(*plots.Plot, uuid.UUID)) error {
 	rows, err := d.sql.Query(`SELECT plot_plot_id, user_uuid FROM ` + d.t(table))
 	if err != nil {
 		return err
@@ -289,7 +289,7 @@ func (d *DB) loadTierLocked(byID map[int64]*plotsquared.Plot, table string, add 
 	return rows.Err()
 }
 
-func (d *DB) loadFlagsLocked(byID map[int64]*plotsquared.Plot) error {
+func (d *DB) loadFlagsLocked(byID map[int64]*plots.Plot) error {
 	rows, err := d.sql.Query(`SELECT plot_id, flag, value FROM ` + d.t("plot_flags"))
 	if err != nil {
 		return err
@@ -310,7 +310,7 @@ func (d *DB) loadFlagsLocked(byID map[int64]*plotsquared.Plot) error {
 	return rows.Err()
 }
 
-func (d *DB) loadSettingsLocked(byID map[int64]*plotsquared.Plot) error {
+func (d *DB) loadSettingsLocked(byID map[int64]*plots.Plot) error {
 	rows, err := d.sql.Query(`SELECT plot_plot_id, alias, merged, position FROM ` + d.t("plot_settings"))
 	if err != nil {
 		return err
@@ -334,10 +334,10 @@ func (d *DB) loadSettingsLocked(byID map[int64]*plotsquared.Plot) error {
 			p.Settings.Alias = alias.String
 		}
 		if merged.Valid {
-			p.Settings.Merged = plotsquared.UnhashMerged(int(merged.Int64))
+			p.Settings.Merged = plots.UnhashMerged(int(merged.Int64))
 		}
 		if pos.Valid {
-			if bl, err := plotsquared.ParseBlockLoc(pos.String); err == nil {
+			if bl, err := plots.ParseBlockLoc(pos.String); err == nil {
 				p.Settings.Position = bl
 			}
 		}
@@ -345,16 +345,16 @@ func (d *DB) loadSettingsLocked(byID map[int64]*plotsquared.Plot) error {
 	return rows.Err()
 }
 
-func (d *DB) loadCommentsLocked(byArea map[string]map[plotsquared.PlotId]*plotsquared.Plot) error {
+func (d *DB) loadCommentsLocked(byArea map[string]map[plots.PlotId]*plots.Plot) error {
 	rows, err := d.sql.Query(`SELECT world, hashcode, comment, inbox, timestamp, sender FROM ` + d.t("plot_comments"))
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	// Build lookup by (world, hashcode)
-	byHash := make(map[string]map[int32]*plotsquared.Plot, len(byArea))
+	byHash := make(map[string]map[int32]*plots.Plot, len(byArea))
 	for areaID, m := range byArea {
-		hm := make(map[int32]*plotsquared.Plot, len(m))
+		hm := make(map[int32]*plots.Plot, len(m))
 		for id, p := range m {
 			hm[id.HashCode()] = p
 		}
@@ -371,7 +371,7 @@ func (d *DB) loadCommentsLocked(byArea map[string]map[plotsquared.PlotId]*plotsq
 		}
 		if hm := byHash[world]; hm != nil {
 			if p := hm[hashcode]; p != nil {
-				p.Settings.Comments = append(p.Settings.Comments, plotsquared.PlotComment{
+				p.Settings.Comments = append(p.Settings.Comments, plots.PlotComment{
 					World:     world,
 					ID:        p.ID,
 					Comment:   comment,
@@ -386,7 +386,7 @@ func (d *DB) loadCommentsLocked(byArea map[string]map[plotsquared.PlotId]*plotsq
 }
 
 // CreatePlot inserts a plot and its settings row, setting p.DBID.
-func (d *DB) CreatePlot(p *plotsquared.Plot) error {
+func (d *DB) CreatePlot(p *plots.Plot) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -416,13 +416,13 @@ func (d *DB) CreatePlot(p *plotsquared.Plot) error {
 	}
 	_, err = d.sql.Exec(
 		`INSERT OR REPLACE INTO `+d.t("plot_settings")+` (plot_plot_id, alias, merged, position) VALUES (?, ?, ?, ?)`,
-		id, alias, plotsquared.HashMerged(p.Settings.Merged), p.Settings.Position.String(),
+		id, alias, plots.HashMerged(p.Settings.Merged), p.Settings.Position.String(),
 	)
 	return err
 }
 
 // DeletePlot removes a plot and all its dependent rows.
-func (d *DB) DeletePlot(p *plotsquared.Plot) error {
+func (d *DB) DeletePlot(p *plots.Plot) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -456,7 +456,7 @@ func (d *DB) DeletePlot(p *plotsquared.Plot) error {
 }
 
 // SetOwner updates a plot's owner.
-func (d *DB) SetOwner(p *plotsquared.Plot, owner uuid.UUID) error {
+func (d *DB) SetOwner(p *plots.Plot, owner uuid.UUID) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if p.Area == nil {
@@ -470,7 +470,7 @@ func (d *DB) SetOwner(p *plotsquared.Plot, owner uuid.UUID) error {
 }
 
 // SetMerged persists the plot's merged edges bitmask.
-func (d *DB) SetMerged(p *plotsquared.Plot) error {
+func (d *DB) SetMerged(p *plots.Plot) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -480,13 +480,13 @@ func (d *DB) SetMerged(p *plotsquared.Plot) error {
 	_, err = d.sql.Exec(
 		`INSERT INTO `+d.t("plot_settings")+` (plot_plot_id, merged) VALUES (?, ?)
 		 ON CONFLICT(plot_plot_id) DO UPDATE SET merged = excluded.merged`,
-		id, plotsquared.HashMerged(p.Settings.Merged),
+		id, plots.HashMerged(p.Settings.Merged),
 	)
 	return err
 }
 
 // SetAlias persists a plot's alias.
-func (d *DB) SetAlias(p *plotsquared.Plot, alias string) error {
+func (d *DB) SetAlias(p *plots.Plot, alias string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -506,7 +506,7 @@ func (d *DB) SetAlias(p *plotsquared.Plot, alias string) error {
 }
 
 // SetPosition persists a plot's home position.
-func (d *DB) SetPosition(p *plotsquared.Plot, pos plotsquared.BlockLoc) error {
+func (d *DB) SetPosition(p *plots.Plot, pos plots.BlockLoc) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -522,21 +522,21 @@ func (d *DB) SetPosition(p *plotsquared.Plot, pos plotsquared.BlockLoc) error {
 }
 
 // SetTrusted adds or removes a trusted player (upstream table `plot_helpers`).
-func (d *DB) SetTrusted(p *plotsquared.Plot, u uuid.UUID, add bool) error {
+func (d *DB) SetTrusted(p *plots.Plot, u uuid.UUID, add bool) error {
 	return d.updateTier(p, "plot_helpers", u, add)
 }
 
 // SetMember adds or removes a member player (upstream table `plot_trusted`).
-func (d *DB) SetMember(p *plotsquared.Plot, u uuid.UUID, add bool) error {
+func (d *DB) SetMember(p *plots.Plot, u uuid.UUID, add bool) error {
 	return d.updateTier(p, "plot_trusted", u, add)
 }
 
 // SetDenied adds or removes a denied player (upstream table `plot_denied`).
-func (d *DB) SetDenied(p *plotsquared.Plot, u uuid.UUID, add bool) error {
+func (d *DB) SetDenied(p *plots.Plot, u uuid.UUID, add bool) error {
 	return d.updateTier(p, "plot_denied", u, add)
 }
 
-func (d *DB) updateTier(p *plotsquared.Plot, table string, u uuid.UUID, add bool) error {
+func (d *DB) updateTier(p *plots.Plot, table string, u uuid.UUID, add bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -552,7 +552,7 @@ func (d *DB) updateTier(p *plotsquared.Plot, table string, u uuid.UUID, add bool
 }
 
 // SetFlag upserts a flag value in `plot_flags`.
-func (d *DB) SetFlag(p *plotsquared.Plot, flagName, serialized string) error {
+func (d *DB) SetFlag(p *plots.Plot, flagName, serialized string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -568,7 +568,7 @@ func (d *DB) SetFlag(p *plotsquared.Plot, flagName, serialized string) error {
 }
 
 // RemoveFlag deletes a flag row from `plot_flags`.
-func (d *DB) RemoveFlag(p *plotsquared.Plot, flagName string) error {
+func (d *DB) RemoveFlag(p *plots.Plot, flagName string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -580,7 +580,7 @@ func (d *DB) RemoveFlag(p *plotsquared.Plot, flagName string) error {
 }
 
 // SetRating inserts or replaces a player's rating on a plot.
-func (d *DB) SetRating(p *plotsquared.Plot, rater uuid.UUID, rating int) error {
+func (d *DB) SetRating(p *plots.Plot, rater uuid.UUID, rating int) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -595,7 +595,7 @@ func (d *DB) SetRating(p *plotsquared.Plot, rater uuid.UUID, rating int) error {
 }
 
 // DeleteRatings deletes all ratings for a plot.
-func (d *DB) DeleteRatings(p *plotsquared.Plot) error {
+func (d *DB) DeleteRatings(p *plots.Plot) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -607,7 +607,7 @@ func (d *DB) DeleteRatings(p *plotsquared.Plot) error {
 }
 
 // AddComment inserts a plot comment.
-func (d *DB) AddComment(c plotsquared.PlotComment) error {
+func (d *DB) AddComment(c plots.PlotComment) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	_, err := d.sql.Exec(
@@ -618,7 +618,7 @@ func (d *DB) AddComment(c plotsquared.PlotComment) error {
 }
 
 // RemoveComment deletes a specific plot comment.
-func (d *DB) RemoveComment(c plotsquared.PlotComment) error {
+func (d *DB) RemoveComment(c plots.PlotComment) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	_, err := d.sql.Exec(
@@ -629,7 +629,7 @@ func (d *DB) RemoveComment(c plotsquared.PlotComment) error {
 }
 
 // ClearInbox removes all comments in a plot's inbox.
-func (d *DB) ClearInbox(world string, id plotsquared.PlotId, inbox string) error {
+func (d *DB) ClearInbox(world string, id plots.PlotId, inbox string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	_, err := d.sql.Exec(
@@ -640,7 +640,7 @@ func (d *DB) ClearInbox(world string, id plotsquared.PlotId, inbox string) error
 }
 
 // MovePlot updates a plot's coordinates and world in the database.
-func (d *DB) MovePlot(p *plotsquared.Plot, newArea string, newID plotsquared.PlotId) error {
+func (d *DB) MovePlot(p *plots.Plot, newArea string, newID plots.PlotId) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id, err := d.resolvePlotIDLocked(p)
@@ -655,12 +655,12 @@ func (d *DB) MovePlot(p *plotsquared.Plot, newArea string, newID plotsquared.Plo
 }
 
 // LoadClusters loads all clusters grouped by area FullID.
-func (d *DB) LoadClusters() (map[string][]*plotsquared.PlotCluster, error) {
+func (d *DB) LoadClusters() (map[string][]*plots.PlotCluster, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	byArea := make(map[string][]*plotsquared.PlotCluster)
-	byID := make(map[int64]*plotsquared.PlotCluster)
+	byArea := make(map[string][]*plots.PlotCluster)
+	byID := make(map[int64]*plots.PlotCluster)
 
 	rows, err := d.sql.Query(`SELECT id, pos1_x, pos1_z, pos2_x, pos2_z, owner, world FROM ` + d.t("cluster"))
 	if err != nil {
@@ -676,10 +676,10 @@ func (d *DB) LoadClusters() (map[string][]*plotsquared.PlotCluster, error) {
 			_ = rows.Close()
 			return nil, err
 		}
-		c := &plotsquared.PlotCluster{
+		c := &plots.PlotCluster{
 			DBID:    id,
-			Pos1:    plotsquared.PlotId{X: x1, Y: z1},
-			Pos2:    plotsquared.PlotId{X: x2, Y: z2},
+			Pos1:    plots.PlotId{X: x1, Y: z1},
+			Pos2:    plots.PlotId{X: x2, Y: z2},
 			Owner:   parseStoredUUID(ownerS),
 			Helpers: make(map[uuid.UUID]struct{}),
 			Invited: make(map[uuid.UUID]struct{}),
@@ -692,13 +692,13 @@ func (d *DB) LoadClusters() (map[string][]*plotsquared.PlotCluster, error) {
 	}
 
 	// Helpers
-	if err := d.loadClusterUsersLocked(byID, "cluster_helpers", func(c *plotsquared.PlotCluster, u uuid.UUID) {
+	if err := d.loadClusterUsersLocked(byID, "cluster_helpers", func(c *plots.PlotCluster, u uuid.UUID) {
 		c.Helpers[u] = struct{}{}
 	}); err != nil {
 		return nil, err
 	}
 	// Invited
-	if err := d.loadClusterUsersLocked(byID, "cluster_invited", func(c *plotsquared.PlotCluster, u uuid.UUID) {
+	if err := d.loadClusterUsersLocked(byID, "cluster_invited", func(c *plots.PlotCluster, u uuid.UUID) {
 		c.Invited[u] = struct{}{}
 	}); err != nil {
 		return nil, err
@@ -723,7 +723,7 @@ func (d *DB) LoadClusters() (map[string][]*plotsquared.PlotCluster, error) {
 				c.Settings.Alias = alias.String
 			}
 			if pos.Valid {
-				if bl, err := plotsquared.ParseBlockLoc(pos.String); err == nil {
+				if bl, err := plots.ParseBlockLoc(pos.String); err == nil {
 					c.Settings.Position = bl
 				}
 			}
@@ -732,7 +732,7 @@ func (d *DB) LoadClusters() (map[string][]*plotsquared.PlotCluster, error) {
 	return byArea, srows.Err()
 }
 
-func (d *DB) loadClusterUsersLocked(byID map[int64]*plotsquared.PlotCluster, table string, add func(*plotsquared.PlotCluster, uuid.UUID)) error {
+func (d *DB) loadClusterUsersLocked(byID map[int64]*plots.PlotCluster, table string, add func(*plots.PlotCluster, uuid.UUID)) error {
 	rows, err := d.sql.Query(`SELECT cluster_id, user_uuid FROM ` + d.t(table))
 	if err != nil {
 		return err
@@ -754,7 +754,7 @@ func (d *DB) loadClusterUsersLocked(byID map[int64]*plotsquared.PlotCluster, tab
 }
 
 // CreateCluster inserts a cluster and its cluster_settings row.
-func (d *DB) CreateCluster(c *plotsquared.PlotCluster) error {
+func (d *DB) CreateCluster(c *plots.PlotCluster) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if c.Area == nil {
@@ -780,7 +780,7 @@ func (d *DB) CreateCluster(c *plotsquared.PlotCluster) error {
 }
 
 // DeleteCluster deletes a cluster and its helpers/invited/settings rows.
-func (d *DB) DeleteCluster(c *plotsquared.PlotCluster) error {
+func (d *DB) DeleteCluster(c *plots.PlotCluster) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if c.DBID == 0 {
@@ -803,7 +803,7 @@ func (d *DB) DeleteCluster(c *plotsquared.PlotCluster) error {
 }
 
 // ResizeCluster updates a cluster's bounds.
-func (d *DB) ResizeCluster(c *plotsquared.PlotCluster, pos1, pos2 plotsquared.PlotId) error {
+func (d *DB) ResizeCluster(c *plots.PlotCluster, pos1, pos2 plots.PlotId) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if c.DBID == 0 {
@@ -817,7 +817,7 @@ func (d *DB) ResizeCluster(c *plotsquared.PlotCluster, pos1, pos2 plotsquared.Pl
 }
 
 // SetClusterUser adds or removes a user in cluster_helpers or cluster_invited.
-func (d *DB) SetClusterUser(c *plotsquared.PlotCluster, table string, u uuid.UUID, add bool) error {
+func (d *DB) SetClusterUser(c *plots.PlotCluster, table string, u uuid.UUID, add bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if c.DBID == 0 {
@@ -832,7 +832,7 @@ func (d *DB) SetClusterUser(c *plotsquared.PlotCluster, table string, u uuid.UUI
 }
 
 // SetClusterPosition updates cluster_settings.position.
-func (d *DB) SetClusterPosition(c *plotsquared.PlotCluster, pos plotsquared.BlockLoc) error {
+func (d *DB) SetClusterPosition(c *plots.PlotCluster, pos plots.BlockLoc) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if c.DBID == 0 {
@@ -885,7 +885,7 @@ func (d *DB) RemovePlayerMeta(u uuid.UUID, key string) error {
 	return err
 }
 
-func (d *DB) resolvePlotIDLocked(p *plotsquared.Plot) (int64, error) {
+func (d *DB) resolvePlotIDLocked(p *plots.Plot) (int64, error) {
 	if p.DBID > 0 {
 		return p.DBID, nil
 	}

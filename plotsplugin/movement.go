@@ -1,4 +1,4 @@
-package plotsquaredplugin
+package plotsplugin
 
 import (
 	"math"
@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/golem-mc/golem/plugin"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/event"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/event"
 	"github.com/google/uuid"
 )
 
@@ -18,7 +18,7 @@ type intervalCounter struct {
 }
 
 type playerState struct {
-	lastPlot      *plotsquared.Plot
+	lastPlot      *plots.Plot
 	disableTitles bool
 	disableTime   bool
 	plotChat      bool
@@ -29,7 +29,7 @@ type playerState struct {
 	heal          *intervalCounter
 }
 
-func (ps *PlotSquared) stateFor(u uuid.UUID) *playerState {
+func (ps *Plugin) stateFor(u uuid.UUID) *playerState {
 	ps.statesMu.Lock()
 	defer ps.statesMu.Unlock()
 	if ps.states == nil {
@@ -43,13 +43,13 @@ func (ps *PlotSquared) stateFor(u uuid.UUID) *playerState {
 	return st
 }
 
-func (ps *PlotSquared) clearPlayerState(u uuid.UUID) {
+func (ps *Plugin) clearPlayerState(u uuid.UUID) {
 	ps.statesMu.Lock()
 	delete(ps.states, u)
 	ps.statesMu.Unlock()
 }
 
-func (ps *PlotSquared) registerMovementListeners() {
+func (ps *Plugin) registerMovementListeners() {
 	s := ps.Server
 	opts := plugin.ListenOptions{Priority: plugin.High, IgnoreCancelled: true}
 
@@ -87,7 +87,7 @@ func (ps *PlotSquared) registerMovementListeners() {
 	}, opts)
 }
 
-func (ps *PlotSquared) checkMovement(p plugin.Player, from, to plugin.Location) bool {
+func (ps *Plugin) checkMovement(p plugin.Player, from, to plugin.Location) bool {
 	toArea := ps.PlotAreaAt(to)
 	if toArea != nil && toArea.WorldBorder && !HasPerm(p, "plots.admin.border.bypass") {
 		lim := float64(toArea.WorldBorderRadius())
@@ -142,7 +142,7 @@ func (ps *PlotSquared) checkMovement(p plugin.Player, from, to plugin.Location) 
 	return true
 }
 
-func (ps *PlotSquared) checkTeleport(p plugin.Player, from, to plugin.Location, _ plugin.TeleportCause) bool {
+func (ps *Plugin) checkTeleport(p plugin.Player, from, to plugin.Location, _ plugin.TeleportCause) bool {
 	toPlot := ps.PlotAt(to)
 	if toPlot != nil {
 		toPlot = toPlot.BasePlot()
@@ -156,7 +156,7 @@ func (ps *PlotSquared) checkTeleport(p plugin.Player, from, to plugin.Location, 
 	return ps.checkMovement(p, from, to)
 }
 
-func (ps *PlotSquared) allowsTeleport(p plugin.Player, plot *plotsquared.Plot) bool {
+func (ps *Plugin) allowsTeleport(p plugin.Player, plot *plots.Plot) bool {
 	if HasPerm(p, "plots.admin.entry.denied") {
 		return true
 	}
@@ -181,7 +181,7 @@ func (ps *PlotSquared) allowsTeleport(p plugin.Player, plot *plotsquared.Plot) b
 	}
 }
 
-func (ps *PlotSquared) handlePlotEnter(p plugin.Player, plot *plotsquared.Plot) {
+func (ps *Plugin) handlePlotEnter(p plugin.Player, plot *plots.Plot) {
 	base := plot.BasePlot()
 	st := ps.stateFor(p.UUID())
 	st.lastPlot = base
@@ -257,11 +257,11 @@ func (ps *PlotSquared) handlePlotEnter(p plugin.Player, plot *plotsquared.Plot) 
 
 	// Weather flag
 	switch base.FlagString("weather") {
-	case string(plotsquared.WeatherRain):
+	case string(plots.WeatherRain):
 		p.SetPlayerWeather(true)
-	case string(plotsquared.WeatherClear):
+	case string(plots.WeatherClear):
 		p.SetPlayerWeather(false)
-	case string(plotsquared.WeatherWorld):
+	case string(plots.WeatherWorld):
 		p.ResetPlayerWeather()
 	}
 
@@ -274,7 +274,7 @@ func (ps *PlotSquared) handlePlotEnter(p plugin.Player, plot *plotsquared.Plot) 
 		titlesEnabled = false
 	}
 	if titlesEnabled && !st.disableTitles {
-		pt, _ := base.FlagValue("plot-title").(plotsquared.PlotTitle)
+		pt, _ := base.FlagValue("plot-title").(plots.PlotTitle)
 		showDefault := !base.FlagBool("server-plot") || (ps.Settings != nil && ps.Settings.Titles.DisplayDefaultServerPlot)
 		var titleTxt, subTxt plugin.Text
 		shouldSend := false
@@ -301,15 +301,15 @@ func (ps *PlotSquared) handlePlotEnter(p plugin.Player, plot *plotsquared.Plot) 
 	}
 
 	// Feed & Heal interval flags
-	if feed, ok := base.FlagValue("feed").(plotsquared.TimedInt); ok && feed.Interval > 0 {
+	if feed, ok := base.FlagValue("feed").(plots.TimedInt); ok && feed.Interval > 0 {
 		st.feed = &intervalCounter{interval: feed.Interval, amount: feed.Value}
 	}
-	if heal, ok := base.FlagValue("heal").(plotsquared.TimedInt); ok && heal.Interval > 0 {
+	if heal, ok := base.FlagValue("heal").(plots.TimedInt); ok && heal.Interval > 0 {
 		st.heal = &intervalCounter{interval: heal.Interval, amount: heal.Value}
 	}
 }
 
-func (ps *PlotSquared) handlePlotLeave(p plugin.Player, plot *plotsquared.Plot) {
+func (ps *Plugin) handlePlotLeave(p plugin.Player, plot *plots.Plot) {
 	base := plot.BasePlot()
 	st := ps.stateFor(p.UUID())
 	st.lastPlot = nil
@@ -365,12 +365,12 @@ func (ps *PlotSquared) handlePlotLeave(p plugin.Player, plot *plotsquared.Plot) 
 	if tVal, ok := base.FlagValue("time").(int64); ok && tVal != math.MinInt64 {
 		p.ResetPlayerTime()
 	}
-	if base.FlagString("weather") != string(plotsquared.WeatherOff) {
+	if base.FlagString("weather") != string(plots.WeatherOff) {
 		p.ResetPlayerWeather()
 	}
 }
 
-func (ps *PlotSquared) tickHealFeed() {
+func (ps *Plugin) tickHealFeed() {
 	ps.statesMu.Lock()
 	defer ps.statesMu.Unlock()
 	for uid, st := range ps.states {
@@ -403,7 +403,7 @@ func (ps *PlotSquared) tickHealFeed() {
 	}
 }
 
-func (ps *PlotSquared) applyForcefield(p plugin.Player, plot *plotsquared.Plot) {
+func (ps *Plugin) applyForcefield(p plugin.Player, plot *plots.Plot) {
 	// Push non-added player away from any nearby plot owner/member within 5 blocks.
 	pos := p.Pos()
 	for _, other := range p.World().Players() {
@@ -437,14 +437,14 @@ func parseGameModeFlag(s string) (plugin.GameMode, bool) {
 	}
 }
 
-func (ps *PlotSquared) sendCaption(sender plugin.CommandSender, key string, kv ...string) {
+func (ps *Plugin) sendCaption(sender plugin.CommandSender, key string, kv ...string) {
 	if sender == nil || ps.Lang == nil {
 		return
 	}
 	sender.SendMessage(ps.Lang.Format(key, kv...))
 }
 
-func (ps *PlotSquared) sendNoPerm(sender plugin.CommandSender, node string) {
+func (ps *Plugin) sendNoPerm(sender plugin.CommandSender, node string) {
 	ps.sendCaption(sender, "permission.no_permission_event", "node", node)
 }
 

@@ -1,4 +1,4 @@
-package plotsquaredplugin_test
+package plotsplugin_test
 
 import (
 	"fmt"
@@ -8,16 +8,16 @@ import (
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/plugintest"
 	"github.com/golem-mc/golem/registry"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/event"
-	"github.com/golem-mc/plotsquared/plotsquaredplugin"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/event"
+	"github.com/golem-mc/plots/plotsplugin"
 	"github.com/golem-mc/vault"
 	"github.com/google/uuid"
 )
 
-func setupCompactPlotWorld(t *testing.T, srv *plugintest.Server, ps *plotsquaredplugin.PlotSquared) (*plotsquared.PlotArea, plugin.World) {
+func setupCompactPlotWorld(t *testing.T, srv *plugintest.Server, ps *plotsplugin.Plugin) (*plots.PlotArea, plugin.World) {
 	t.Helper()
-	area := plotsquared.DefaultPlotArea("plotworld", "")
+	area := plots.DefaultPlotArea("plotworld", "")
 	area.PlotWidth = 10
 	area.RoadWidth = 5
 	area.PlotHeight = 62
@@ -50,13 +50,13 @@ func setupCompactPlotWorld(t *testing.T, srv *plugintest.Server, ps *plotsquared
 func TestBlockAndInteractProtection(t *testing.T) {
 	t.Chdir(t.TempDir())
 	srv := plugintest.Start(t)
-	ps, _ := plotsquaredplugin.Get()
+	ps, _ := plotsplugin.Get()
 	area, w := setupCompactPlotWorld(t, srv, ps)
 
 	alice := srv.Join("Alice")
 	bob := srv.Join("Bob")
 
-	p1, err := ps.ClaimPlot(area, plotsquared.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
+	p1, err := ps.ClaimPlot(area, plots.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
 	if err != nil {
 		t.Fatalf("ClaimPlot: %v", err)
 	}
@@ -152,13 +152,13 @@ func TestBlockAndInteractProtection(t *testing.T) {
 func TestMovementFlagsPvPChatAndBlockedCmds(t *testing.T) {
 	t.Chdir(t.TempDir())
 	srv := plugintest.Start(t)
-	ps, _ := plotsquaredplugin.Get()
+	ps, _ := plotsplugin.Get()
 	area, w := setupCompactPlotWorld(t, srv, ps)
 
 	alice := srv.Join("Alice")
 	bob := srv.Join("Bob")
 
-	p1, err := ps.ClaimPlot(area, plotsquared.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
+	p1, err := ps.ClaimPlot(area, plots.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
 	if err != nil {
 		t.Fatalf("ClaimPlot: %v", err)
 	}
@@ -299,7 +299,7 @@ func (m *mockEconomy) Deposit(p plugin.UUID, amt float64) vault.Response {
 func TestVaultEconomyBuyPlot(t *testing.T) {
 	t.Chdir(t.TempDir())
 	srv := plugintest.Start(t)
-	ps, _ := plotsquaredplugin.Get()
+	ps, _ := plotsplugin.Get()
 	ps.Settings.EnabledComponents.Economy = true
 	area, _ := setupCompactPlotWorld(t, srv, ps)
 	area.UseEconomy = true
@@ -313,7 +313,7 @@ func TestVaultEconomyBuyPlot(t *testing.T) {
 	}}
 	plugin.Provide[vault.Economy](srv.Host(), eco, 10)
 
-	p1, err := ps.ClaimPlot(area, plotsquared.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
+	p1, err := ps.ClaimPlot(area, plots.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
 	if err != nil {
 		t.Fatalf("ClaimPlot: %v", err)
 	}

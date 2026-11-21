@@ -1,4 +1,4 @@
-package plotsquaredplugin
+package plotsplugin
 
 import (
 	"fmt"
@@ -6,16 +6,16 @@ import (
 	"time"
 
 	"github.com/golem-mc/golem/plugin"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/event"
-	"github.com/golem-mc/plotsquared/internal/config"
-	"github.com/golem-mc/plotsquared/internal/generator"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/event"
+	"github.com/golem-mc/plots/internal/config"
+	"github.com/golem-mc/plots/internal/generator"
 	"github.com/google/uuid"
 )
 
 // ClaimPlot claims an unclaimed plot for player (firing PlayerClaimPlotEvent,
 // persisting to SQLite, updating claimed wall blocks and claim sign, and optionally auto-merging).
-func (ps *PlotSquared) ClaimPlot(area *plotsquared.PlotArea, id plotsquared.PlotId, owner uuid.UUID, actor plugin.Player, auto bool) (*plotsquared.Plot, error) {
+func (ps *Plugin) ClaimPlot(area *plots.PlotArea, id plots.PlotId, owner uuid.UUID, actor plugin.Player, auto bool) (*plots.Plot, error) {
 	if area == nil {
 		return nil, fmt.Errorf("not in a plot area")
 	}
@@ -25,7 +25,7 @@ func (ps *PlotSquared) ClaimPlot(area *plotsquared.PlotArea, id plotsquared.Plot
 	if existing := area.PlotAbs(id); existing != nil && existing.HasOwner() {
 		return nil, fmt.Errorf("plot %s is already claimed", id)
 	}
-	p := plotsquared.NewPlot(area, id, owner)
+	p := plots.NewPlot(area, id, owner)
 	p.Timestamp = time.Now().UnixMilli()
 
 	ev := &event.PlayerClaimPlotEvent{Player: actor, Plot: p, Auto: auto}
@@ -48,13 +48,13 @@ func (ps *PlotSquared) ClaimPlot(area *plotsquared.PlotArea, id plotsquared.Plot
 	}
 
 	if area.AutoMerge {
-		_, _ = ps.MergePlot(p, plotsquared.DirAll, 16, actor, true)
+		_, _ = ps.MergePlot(p, plots.DirAll, 16, actor, true)
 	}
 	return p, nil
 }
 
 // AutoClaim finds the next free plot (or NxM block) in area and claims it.
-func (ps *PlotSquared) AutoClaim(area *plotsquared.PlotArea, owner uuid.UUID, actor plugin.Player, sizeX, sizeZ int) (*plotsquared.Plot, error) {
+func (ps *Plugin) AutoClaim(area *plots.PlotArea, owner uuid.UUID, actor plugin.Player, sizeX, sizeZ int) (*plots.Plot, error) {
 	if area == nil {
 		return nil, fmt.Errorf("not in a plot area")
 	}
@@ -69,10 +69,10 @@ func (ps *PlotSquared) AutoClaim(area *plotsquared.PlotArea, owner uuid.UUID, ac
 	if !ok {
 		return nil, fmt.Errorf("no free %dx%d plot block available in %s", sizeX, sizeZ, area.FullID())
 	}
-	var claimed []*plotsquared.Plot
+	var claimed []*plots.Plot
 	for dx := range sizeX {
 		for dz := range sizeZ {
-			p, err := ps.ClaimPlot(area, plotsquared.PlotId{X: start.X + dx, Y: start.Y + dz}, owner, actor, true)
+			p, err := ps.ClaimPlot(area, plots.PlotId{X: start.X + dx, Y: start.Y + dz}, owner, actor, true)
 			if err != nil {
 				return nil, err
 			}
@@ -87,7 +87,7 @@ func (ps *PlotSquared) AutoClaim(area *plotsquared.PlotArea, owner uuid.UUID, ac
 }
 
 // ClearPlot clears a plot back to default terrain, firing PlotClearEvent.
-func (ps *PlotSquared) ClearPlot(plot *plotsquared.Plot) error {
+func (ps *Plugin) ClearPlot(plot *plots.Plot) error {
 	if plot == nil || plot.Area == nil {
 		return fmt.Errorf("invalid plot")
 	}
@@ -105,7 +105,7 @@ func (ps *PlotSquared) ClearPlot(plot *plotsquared.Plot) error {
 }
 
 // DeletePlot unlinks (if merged), clears, removes from DB and memory, and restores unclaimed walls.
-func (ps *PlotSquared) DeletePlot(plot *plotsquared.Plot, clearBlocks bool) error {
+func (ps *Plugin) DeletePlot(plot *plots.Plot, clearBlocks bool) error {
 	if plot == nil || plot.Area == nil {
 		return fmt.Errorf("invalid plot")
 	}
@@ -144,7 +144,7 @@ func (ps *PlotSquared) DeletePlot(plot *plotsquared.Plot, clearBlocks bool) erro
 
 // MergePlot merges plot with adjacent same-owner (or allowed) plot(s) in dir (or DirAll).
 // Returns the number of merges performed.
-func (ps *PlotSquared) MergePlot(plot *plotsquared.Plot, dir plotsquared.Direction, maxSize int, actor plugin.Player, removeRoads bool) (int, error) {
+func (ps *Plugin) MergePlot(plot *plots.Plot, dir plots.Direction, maxSize int, actor plugin.Player, removeRoads bool) (int, error) {
 	if plot == nil || plot.Area == nil || !plot.HasOwner() {
 		return 0, fmt.Errorf("plot is not owned")
 	}
@@ -157,9 +157,9 @@ func (ps *PlotSquared) MergePlot(plot *plotsquared.Plot, dir plotsquared.Directi
 		return 0, fmt.Errorf("merge cancelled")
 	}
 
-	dirs := []plotsquared.Direction{dir}
-	if dir == plotsquared.DirAll {
-		dirs = plotsquared.CardinalDirections[:]
+	dirs := []plots.Direction{dir}
+	if dir == plots.DirAll {
+		dirs = plots.CardinalDirections[:]
 	}
 
 	mergedCount := 0
@@ -169,12 +169,12 @@ func (ps *PlotSquared) MergePlot(plot *plotsquared.Plot, dir plotsquared.Directi
 			break
 		}
 		// Find all candidate neighbours in the requested direction(s).
-		groupMap := make(map[plotsquared.PlotId]*plotsquared.Plot, len(curGroup))
+		groupMap := make(map[plots.PlotId]*plots.Plot, len(curGroup))
 		for _, cp := range curGroup {
 			groupMap[cp.ID] = cp
 		}
-		var additions []*plotsquared.Plot
-		seenAdd := make(map[plotsquared.PlotId]bool)
+		var additions []*plots.Plot
+		seenAdd := make(map[plots.PlotId]bool)
 		for _, cp := range curGroup {
 			for _, d := range dirs {
 				if d < 0 || d > 3 || cp.IsMergedDir(d) {
@@ -216,11 +216,11 @@ func (ps *PlotSquared) MergePlot(plot *plotsquared.Plot, dir plotsquared.Directi
 			minY = min(minY, cp.ID.Y)
 			maxY = max(maxY, cp.ID.Y)
 		}
-		var rect []*plotsquared.Plot
+		var rect []*plots.Plot
 		rectOK := true
 		for x := minX; x <= maxX && rectOK; x++ {
 			for y := minY; y <= maxY; y++ {
-				rp := area.PlotAbs(plotsquared.PlotId{X: x, Y: y})
+				rp := area.PlotAbs(plots.PlotId{X: x, Y: y})
 				if rp == nil || !rp.HasOwner() || (rp.Owner != base.Owner && (actor == nil || !HasPerm(actor, "plots.admin.command.merge"))) {
 					rectOK = false
 					break
@@ -237,15 +237,15 @@ func (ps *PlotSquared) MergePlot(plot *plotsquared.Plot, dir plotsquared.Directi
 		}
 		mergedCount += n
 		base = rect[0].BasePlot()
-		if dir != plotsquared.DirAll {
+		if dir != plots.DirAll {
 			break
 		}
 	}
 	return mergedCount, nil
 }
 
-func (ps *PlotSquared) mergeGroup(area *plotsquared.PlotArea, group []*plotsquared.Plot, _ plugin.Player, removeRoads bool) (int, error) {
-	byID := make(map[plotsquared.PlotId]*plotsquared.Plot, len(group))
+func (ps *Plugin) mergeGroup(area *plots.PlotArea, group []*plots.Plot, _ plugin.Player, removeRoads bool) (int, error) {
+	byID := make(map[plots.PlotId]*plots.Plot, len(group))
 	for _, p := range group {
 		byID[p.ID] = p
 	}
@@ -277,7 +277,7 @@ func (ps *PlotSquared) mergeGroup(area *plotsquared.PlotArea, group []*plotsquar
 	// Update edge flags and remove intervening roads/intersections.
 	for _, p := range group {
 		dirty := false
-		for _, d := range plotsquared.CardinalDirections {
+		for _, d := range plots.CardinalDirections {
 			nid := p.ID.Relative(d)
 			if _, ok := byID[nid]; ok && !p.Settings.Merged[d] {
 				p.Settings.Merged[d] = true
@@ -285,17 +285,17 @@ func (ps *PlotSquared) mergeGroup(area *plotsquared.PlotArea, group []*plotsquar
 				changedEdges++
 				if removeRoads && hasWorld {
 					switch d {
-					case plotsquared.DirEast:
+					case plots.DirEast:
 						generator.RemoveRoadEast(w, area, p.ID)
-					case plotsquared.DirSouth:
+					case plots.DirSouth:
 						generator.RemoveRoadSouth(w, area, p.ID)
 					}
 				}
 			}
 		}
 		// Remove 2x2 southeast intersection if all 4 cells are in group.
-		if removeRoads && hasWorld && p.Settings.Merged[plotsquared.DirEast] && p.Settings.Merged[plotsquared.DirSouth] {
-			if _, ok := byID[plotsquared.PlotId{X: p.ID.X + 1, Y: p.ID.Y + 1}]; ok {
+		if removeRoads && hasWorld && p.Settings.Merged[plots.DirEast] && p.Settings.Merged[plots.DirSouth] {
+			if _, ok := byID[plots.PlotId{X: p.ID.X + 1, Y: p.ID.Y + 1}]; ok {
 				generator.RemoveRoadSouthEast(w, area, p.ID)
 			}
 		}
@@ -308,17 +308,17 @@ func (ps *PlotSquared) mergeGroup(area *plotsquared.PlotArea, group []*plotsquar
 
 	if hasWorld && changedEdges > 0 && area.RoadWidth > 0 {
 		if area.PlaceTopBlock {
-			generator.SetComponent(w, area, base, plotsquared.ComponentBorder, area.ClaimedWallBlock)
+			generator.SetComponent(w, area, base, plots.ComponentBorder, area.ClaimedWallBlock)
 		}
 		if ps.Settings == nil || ps.Settings.General.MergeReplaceWall {
-			generator.SetComponent(w, area, base, plotsquared.ComponentWall, area.WallFilling)
+			generator.SetComponent(w, area, base, plots.ComponentWall, area.WallFilling)
 		}
 	}
 	return changedEdges, nil
 }
 
 // UnlinkPlot separates a merged plot group back into individual plots, optionally restoring roads.
-func (ps *PlotSquared) UnlinkPlot(plot *plotsquared.Plot, createRoads bool, reason string) error {
+func (ps *Plugin) UnlinkPlot(plot *plots.Plot, createRoads bool, reason string) error {
 	if plot == nil || plot.Area == nil || !plot.IsMerged() {
 		return fmt.Errorf("plot is not merged")
 	}
@@ -337,23 +337,23 @@ func (ps *PlotSquared) UnlinkPlot(plot *plotsquared.Plot, createRoads bool, reas
 
 	// Record which roads/intersections existed before clearing merged bits.
 	type edgeRec struct {
-		id     plotsquared.PlotId
+		id     plots.PlotId
 		east   bool
 		south  bool
 		seQuad bool
 	}
-	idSet := make(map[plotsquared.PlotId]*plotsquared.Plot, len(connected))
+	idSet := make(map[plots.PlotId]*plots.Plot, len(connected))
 	for _, cp := range connected {
 		idSet[cp.ID] = cp
 	}
 	var recs []edgeRec
 	for _, cp := range connected {
-		seQuad := cp.IsMergedDir(plotsquared.DirEast) && cp.IsMergedDir(plotsquared.DirSouth) &&
-			idSet[plotsquared.PlotId{X: cp.ID.X + 1, Y: cp.ID.Y + 1}] != nil
+		seQuad := cp.IsMergedDir(plots.DirEast) && cp.IsMergedDir(plots.DirSouth) &&
+			idSet[plots.PlotId{X: cp.ID.X + 1, Y: cp.ID.Y + 1}] != nil
 		recs = append(recs, edgeRec{
 			id:     cp.ID,
-			east:   cp.IsMergedDir(plotsquared.DirEast),
-			south:  cp.IsMergedDir(plotsquared.DirSouth),
+			east:   cp.IsMergedDir(plots.DirEast),
+			south:  cp.IsMergedDir(plots.DirSouth),
 			seQuad: seQuad,
 		})
 		cp.Settings.Merged = [4]bool{}
@@ -378,7 +378,7 @@ func (ps *PlotSquared) UnlinkPlot(plot *plotsquared.Plot, createRoads bool, reas
 		}
 		for _, cp := range connected {
 			if area.PlaceTopBlock {
-				generator.SetComponent(w, area, cp, plotsquared.ComponentBorder, area.ClaimedWallBlock)
+				generator.SetComponent(w, area, cp, plots.ComponentBorder, area.ClaimedWallBlock)
 			}
 		}
 	}
@@ -386,7 +386,7 @@ func (ps *PlotSquared) UnlinkPlot(plot *plotsquared.Plot, createRoads bool, reas
 }
 
 // SetOwner changes the owner of a plot (and all its connected merged cells).
-func (ps *PlotSquared) SetOwner(plot *plotsquared.Plot, newOwner uuid.UUID, initiator plugin.CommandSender) error {
+func (ps *Plugin) SetOwner(plot *plots.Plot, newOwner uuid.UUID, initiator plugin.CommandSender) error {
 	if plot == nil || plot.Area == nil {
 		return fmt.Errorf("invalid plot")
 	}
@@ -425,11 +425,11 @@ func (ps *PlotSquared) SetOwner(plot *plotsquared.Plot, newOwner uuid.UUID, init
 }
 
 // SetFlag parses and sets flagName=rawVal on plot, persisting to SQLite.
-func (ps *PlotSquared) SetFlag(plot *plotsquared.Plot, flagName, rawVal string) (any, error) {
+func (ps *Plugin) SetFlag(plot *plots.Plot, flagName, rawVal string) (any, error) {
 	if plot == nil || !plot.HasOwner() {
 		return nil, fmt.Errorf("plot is unowned")
 	}
-	def := plotsquared.LookupFlag(flagName)
+	def := plots.LookupFlag(flagName)
 	if def == nil {
 		return nil, fmt.Errorf("unknown flag %q", flagName)
 	}
@@ -453,7 +453,7 @@ func (ps *PlotSquared) SetFlag(plot *plotsquared.Plot, flagName, rawVal string) 
 }
 
 // RemoveFlag removes a flag from plot, persisting to SQLite.
-func (ps *PlotSquared) RemoveFlag(plot *plotsquared.Plot, flagName string) (bool, error) {
+func (ps *Plugin) RemoveFlag(plot *plots.Plot, flagName string) (bool, error) {
 	if plot == nil || !plot.HasOwner() {
 		return false, fmt.Errorf("plot is unowned")
 	}
@@ -477,11 +477,11 @@ func (ps *PlotSquared) RemoveFlag(plot *plotsquared.Plot, flagName string) (bool
 }
 
 // SetComponent updates a plot component (floor, wall, border, etc.) and fires PlotComponentSetEvent.
-func (ps *PlotSquared) SetComponent(plot *plotsquared.Plot, comp plotsquared.PlotComponent, pattern string) error {
+func (ps *Plugin) SetComponent(plot *plots.Plot, comp plots.PlotComponent, pattern string) error {
 	if plot == nil || plot.Area == nil {
 		return fmt.Errorf("invalid plot")
 	}
-	bucket, err := plotsquared.ParseBlockBucket(pattern)
+	bucket, err := plots.ParseBlockBucket(pattern)
 	if err != nil {
 		return err
 	}
@@ -501,7 +501,7 @@ func (ps *PlotSquared) SetComponent(plot *plotsquared.Plot, comp plotsquared.Plo
 }
 
 // SetBiome sets the biome across plot.
-func (ps *PlotSquared) SetBiome(plot *plotsquared.Plot, biomeName string) error {
+func (ps *Plugin) SetBiome(plot *plots.Plot, biomeName string) error {
 	if plot == nil || plot.Area == nil {
 		return fmt.Errorf("invalid plot")
 	}
@@ -518,7 +518,7 @@ func (ps *PlotSquared) SetBiome(plot *plotsquared.Plot, biomeName string) error 
 }
 
 // CopyPlot copies blocks and metadata from src to an unowned target plot.
-func (ps *PlotSquared) CopyPlot(src *plotsquared.Plot, dstArea *plotsquared.PlotArea, dstID plotsquared.PlotId) (*plotsquared.Plot, error) {
+func (ps *Plugin) CopyPlot(src *plots.Plot, dstArea *plots.PlotArea, dstID plots.PlotId) (*plots.Plot, error) {
 	if src == nil || src.Area == nil || dstArea == nil {
 		return nil, fmt.Errorf("invalid plot")
 	}
@@ -545,7 +545,7 @@ func (ps *PlotSquared) CopyPlot(src *plotsquared.Plot, dstArea *plotsquared.Plot
 }
 
 // MovePlot moves src plot (blocks + DB record) to an unowned destination plot.
-func (ps *PlotSquared) MovePlot(src *plotsquared.Plot, dstArea *plotsquared.PlotArea, dstID plotsquared.PlotId) error {
+func (ps *Plugin) MovePlot(src *plots.Plot, dstArea *plots.PlotArea, dstID plots.PlotId) error {
 	if src == nil || src.Area == nil || dstArea == nil {
 		return fmt.Errorf("invalid plot")
 	}
@@ -583,7 +583,7 @@ func (ps *PlotSquared) MovePlot(src *plotsquared.Plot, dstArea *plotsquared.Plot
 }
 
 // SwapPlots swaps blocks and ownership between two single plots of equal width.
-func (ps *PlotSquared) SwapPlots(p1, p2 *plotsquared.Plot) error {
+func (ps *Plugin) SwapPlots(p1, p2 *plots.Plot) error {
 	if p1 == nil || p2 == nil || p1.Area == nil || p2.Area == nil {
 		return fmt.Errorf("invalid plots")
 	}
@@ -613,14 +613,14 @@ func (ps *PlotSquared) SwapPlots(p1, p2 *plotsquared.Plot) error {
 
 // CreatePlotWorld creates and loads a new plot world with the given PlotArea settings,
 // saving it to worlds.yml.
-func (ps *PlotSquared) CreatePlotWorld(area *plotsquared.PlotArea) (plugin.World, error) {
+func (ps *Plugin) CreatePlotWorld(area *plots.PlotArea) (plugin.World, error) {
 	if area == nil || area.WorldName == "" {
 		return nil, fmt.Errorf("world name is required")
 	}
 	area.ComputeGeometry()
 	low := strings.ToLower(area.WorldName)
 	ps.mu.Lock()
-	ps.areas[low] = []*plotsquared.PlotArea{area}
+	ps.areas[low] = []*plots.PlotArea{area}
 	ps.mu.Unlock()
 
 	if ps.Worlds != nil {
@@ -641,13 +641,13 @@ func (ps *PlotSquared) CreatePlotWorld(area *plotsquared.PlotArea) (plugin.World
 }
 
 // CreatePartialArea adds a partial plot area inside an existing world and saves worlds.yml.
-func (ps *PlotSquared) CreatePartialArea(worldName, id string, minID, maxID plotsquared.PlotId, area *plotsquared.PlotArea) error {
+func (ps *Plugin) CreatePartialArea(worldName, id string, minID, maxID plots.PlotId, area *plots.PlotArea) error {
 	if area == nil {
-		area = plotsquared.DefaultPlotArea(worldName, id)
+		area = plots.DefaultPlotArea(worldName, id)
 	}
 	area.WorldName = worldName
 	area.ID = id
-	area.Type = plotsquared.AreaPartial
+	area.Type = plots.AreaPartial
 	m1, m2 := minID, maxID
 	area.Min = &m1
 	area.Max = &m2
@@ -675,7 +675,7 @@ func (ps *PlotSquared) CreatePartialArea(worldName, id string, minID, maxID plot
 }
 
 // Reload reloads settings.yml, worlds.yml, lang files, and generator patterns/schematics.
-func (ps *PlotSquared) Reload() error {
+func (ps *Plugin) Reload() error {
 	if err := ps.loadConfigs(); err != nil {
 		return err
 	}
@@ -689,11 +689,11 @@ func (ps *PlotSquared) Reload() error {
 }
 
 // PlayerName resolves a UUID to a player's name via online players or offline cache.
-func (ps *PlotSquared) PlayerName(u uuid.UUID) string {
+func (ps *Plugin) PlayerName(u uuid.UUID) string {
 	if u == uuid.Nil {
 		return "Server"
 	}
-	if u == plotsquared.EveryoneUUID {
+	if u == plots.EveryoneUUID {
 		return "*"
 	}
 	if ps.Server != nil {
@@ -708,10 +708,10 @@ func (ps *PlotSquared) PlayerName(u uuid.UUID) string {
 }
 
 // ResolvePlayerUUID resolves a player name, "*", or UUID string to a UUID.
-func (ps *PlotSquared) ResolvePlayerUUID(name string) (uuid.UUID, bool) {
+func (ps *Plugin) ResolvePlayerUUID(name string) (uuid.UUID, bool) {
 	name = strings.TrimSpace(name)
 	if name == "*" || strings.EqualFold(name, "everyone") {
-		return plotsquared.EveryoneUUID, true
+		return plots.EveryoneUUID, true
 	}
 	if u, err := uuid.Parse(name); err == nil {
 		return u, true

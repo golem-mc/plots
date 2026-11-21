@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/golem-mc/plotsquared"
+	"github.com/golem-mc/plots"
 	"github.com/google/uuid"
 )
 
@@ -16,16 +16,16 @@ func TestSQLiteCRUDAndUpstreamSchema(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 
-	area := plotsquared.DefaultPlotArea("plotworld", "")
+	area := plots.DefaultPlotArea("plotworld", "")
 	owner := uuid.New()
 	trusted := uuid.New()
 	member := uuid.New()
-	denied := plotsquared.EveryoneUUID
+	denied := plots.EveryoneUUID
 
-	p := plotsquared.NewPlot(area, plotsquared.PlotId{X: 1, Y: -2}, owner)
+	p := plots.NewPlot(area, plots.PlotId{X: 1, Y: -2}, owner)
 	p.Settings.Alias = "spawn"
 	p.Settings.Merged = [4]bool{true, false, true, false}
-	p.Settings.Position = plotsquared.BlockLoc{X: 5, Y: 65, Z: 5, Set: true}
+	p.Settings.Position = plots.BlockLoc{X: 5, Y: 65, Z: 5, Set: true}
 
 	if err := db.CreatePlot(p); err != nil {
 		t.Fatalf("CreatePlot: %v", err)
@@ -51,17 +51,17 @@ func TestSQLiteCRUDAndUpstreamSchema(t *testing.T) {
 	if err := db.SetRating(p, member, 9); err != nil {
 		t.Fatalf("SetRating: %v", err)
 	}
-	if err := db.AddComment(plotsquared.PlotComment{
+	if err := db.AddComment(plots.PlotComment{
 		World: area.FullID(), ID: p.ID, Comment: "Nice!", Inbox: "public", Timestamp: 12345, Sender: "Alice",
 	}); err != nil {
 		t.Fatalf("AddComment: %v", err)
 	}
 
 	// Create cluster
-	c := &plotsquared.PlotCluster{
+	c := &plots.PlotCluster{
 		Area:    area,
-		Pos1:    plotsquared.PlotId{X: 5, Y: 5},
-		Pos2:    plotsquared.PlotId{X: 7, Y: 7},
+		Pos1:    plots.PlotId{X: 5, Y: 5},
+		Pos2:    plots.PlotId{X: 7, Y: 7},
 		Owner:   owner,
 		Name:    "market",
 		Helpers: make(map[uuid.UUID]struct{}),
@@ -106,11 +106,11 @@ func TestSQLiteCRUDAndUpstreamSchema(t *testing.T) {
 	}
 	defer func() { _ = db2.Close() }()
 
-	plots, err := db2.LoadPlots()
+	loadedPlots, err := db2.LoadPlots()
 	if err != nil {
 		t.Fatalf("LoadPlots: %v", err)
 	}
-	loaded := plots["plotworld"][plotsquared.PlotId{X: 1, Y: -2}]
+	loaded := loadedPlots["plotworld"][plots.PlotId{X: 1, Y: -2}]
 	if loaded == nil {
 		t.Fatalf("expected plot (1;-2) loaded")
 	}
@@ -126,7 +126,7 @@ func TestSQLiteCRUDAndUpstreamSchema(t *testing.T) {
 	if _, ok := loaded.Members[member]; !ok {
 		t.Errorf("member missing after reload")
 	}
-	if _, ok := loaded.Denied[plotsquared.EveryoneUUID]; !ok {
+	if _, ok := loaded.Denied[plots.EveryoneUUID]; !ok {
 		t.Errorf("denied everyone missing after reload")
 	}
 	if !loaded.FlagBool("pvp") || loaded.FlagString("greeting") != "Welcome!" {

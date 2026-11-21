@@ -1,5 +1,5 @@
 # Local builds and runs
-/plotsquared-server
+/plots-server
 *.exe
 go.work
 go.work.sum
