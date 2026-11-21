@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/golem-mc/golem/plugin"
+	"github.com/golem-mc/golem/registry"
 	"github.com/golem-mc/plots"
 	"github.com/golem-mc/plots/event"
 	"github.com/golem-mc/plots/internal/backup"
@@ -202,6 +203,10 @@ func (ps *Plugin) Enable(s plugin.Server) error {
 		if e.New {
 			ps.onNewChunk(e.Chunk)
 		}
+	})
+
+	plugin.Listen(s, func(e *plugin.ChunkUnloadEvent) {
+		ps.onChunkUnload(e.Chunk)
 	})
 
 	// Initialize backup and expiry managers
@@ -427,6 +432,32 @@ func (ps *Plugin) onNewChunk(chunk plugin.Chunk) {
 		if a.Type == plots.AreaAugmented || a.Type == plots.AreaPartial {
 			gen := ps.generatorForArea(a)
 			gen.AugmentChunk(w, chunk)
+		}
+	}
+}
+
+// onChunkUnload mirrors PlotSquared's ChunkListener.onChunkUnload: in plot
+// worlds it removes the road entities and, when the chunk held more than
+// chunk_processor.max-entities, the entities over the cap. Players are kept.
+func (ps *Plugin) onChunkUnload(chunk plugin.Chunk) {
+	w := chunk.World()
+	if w == nil || len(ps.PlotAreasInWorld(ps.WorldName(w))) == 0 {
+		return
+	}
+	entities := chunk.Entities()
+	max := ps.Settings.ChunkProcessor.MaxEntities
+	kept := 0
+	for _, ent := range entities {
+		if ent.Type() == registry.EntityTypePlayer {
+			continue
+		}
+		if area := ps.PlotAreaAt(ent.Location()); area != nil && area.PlotAt(ent.Location().Pos.Block().X, ent.Location().Pos.Block().Z) == nil {
+			ent.Remove()
+			continue
+		}
+		kept++
+		if kept > max {
+			ent.Remove()
 		}
 	}
 }

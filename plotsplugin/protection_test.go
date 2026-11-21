@@ -335,6 +335,58 @@ func TestVaultEconomyBuyPlot(t *testing.T) {
 	}
 }
 
+func TestChunkUnloadPrunesEntities(t *testing.T) {
+	t.Chdir(t.TempDir())
+	srv := plugintest.Start(t)
+	ps, _ := plotsplugin.Get()
+	area, w := setupCompactPlotWorld(t, srv, ps)
+	ps.Settings.ChunkProcessor.MaxEntities = 3
+
+	p1 := area.PlotInteriorBounds(plots.PlotId{X: 1, Y: 1})
+	inPlot := plugin.Location{World: w, Pos: plugin.Vec3{X: float64(p1.Min.X) + 2.5, Y: 63, Z: float64(p1.Min.Z) + 2.5}}
+	road := plugin.Location{World: w, Pos: plugin.Vec3{X: float64(p1.Min.X) - 2.5, Y: 63, Z: float64(p1.Min.Z) + 2.5}}
+	var inside, onRoad []plugin.Entity
+	for range 6 {
+		e, err := w.Spawn(registry.EntityTypeCow, inPlot, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		inside = append(inside, e)
+	}
+	for range 2 {
+		e, err := w.Spawn(registry.EntityTypeCow, road, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		onRoad = append(onRoad, e)
+	}
+	srv.RunTicks(1)
+	cp := plugin.ChunkPos{X: int(p1.Min.X) >> 4, Z: int(p1.Min.Z) >> 4}
+	var chunk plugin.Chunk
+	w.LoadChunk(cp, false, func(c plugin.Chunk) { chunk = c })
+	srv.RunTicks(1)
+	if chunk == nil {
+		t.Fatal("chunk not loaded")
+	}
+	srv.Host().Events().Fire(&plugin.ChunkUnloadEvent{Chunk: chunk})
+	srv.RunTicks(1)
+
+	alive := 0
+	for _, e := range inside {
+		if e.IsValid() {
+			alive++
+		}
+	}
+	if alive > 3 {
+		t.Errorf("plot entities left = %d, want at most 3", alive)
+	}
+	for _, e := range onRoad {
+		if e.IsValid() {
+			t.Errorf("road entity survived unload")
+		}
+	}
+}
+
 func TestPlotMusicPlaysOnEnter(t *testing.T) {
 	t.Chdir(t.TempDir())
 	srv := plugintest.Start(t)
