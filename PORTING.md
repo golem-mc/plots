@@ -12,6 +12,8 @@ This repository ports [PlotSquared](https://github.com/IntellectualSites/PlotSqu
 | `internal/lang/` | Embedded `messages_en.json`, locale loader and MiniMessage-to-`plugin.Text` parser | `configuration/caption/`, `resources/lang/messages_en.json` |
 | `internal/config/` | `config/settings.yml`, `config/storage.yml`, `config/worlds.yml` and bundled `.template` archives | `Settings`, `Storage`, `PlotArea` YAML serialization |
 | `internal/storage/` | Pure-Go SQLite (`modernc.org/sqlite`) storage using upstream's exact 13-table schema | `database/SQLManager`, `database/SQLite` |
+| `internal/generator/` | `HybridGenerator` (`plugin.Generator`), road/plot schematic overlays, plot terrain ops (clear, components, merge/unlink roads, copy/swap, road schematics) | `generator/HybridGen`, `HybridPlotWorld`, `ClassicPlotManager`, `HybridPlotManager` |
+| `plotsquaredplugin/` | The `plotsquared` plugin: lifecycle, `GeneratorProvider`, permissions, plot manager, WorldEdit region restrictions | `BukkitPlatform`, `PlotSquared`, `WESubscriber` |
 
 ## Decisions
 
