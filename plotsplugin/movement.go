@@ -3,6 +3,7 @@ package plotsplugin
 import (
 	"math"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/golem-mc/golem/plugin"
@@ -205,6 +206,8 @@ func (ps *Plugin) handlePlotEnter(p plugin.Player, plot *plots.Plot) {
 		}
 	}
 
+	ps.playPlotMusic(p, base, true)
+
 	// Notify owner on enter
 	if base.FlagBool("notify-enter") && !HasPerm(p, "plots.flag.notify-enter.bypass") {
 		for _, ownerUUID := range base.Owners() {
@@ -335,6 +338,8 @@ func (ps *Plugin) handlePlotLeave(p plugin.Player, plot *plots.Plot) {
 		}
 	}
 
+	ps.playPlotMusic(p, base, false)
+
 	// Notify owner on leave
 	if base.FlagBool("notify-leave") && !HasPerm(p, "plots.flag.notify-leave.bypass") {
 		for _, ownerUUID := range base.Owners() {
@@ -457,3 +462,30 @@ func itoa(v int) string {
 
 // Keep sync imported cleanly if statesMu lives on PlotSquared.
 var _ sync.Locker = (*sync.Mutex)(nil)
+
+// plotMusicSound maps the music flag ("minecraft:music_disc_cat") to its
+// sound event ("minecraft:music_disc.cat").
+func (ps *Plugin) plotMusicSound(plot *plots.Plot) (snd plugin.Sound, ok bool) {
+	v := plot.FlagString("music")
+	if v == "" || v == "minecraft:air" {
+		return snd, false
+	}
+	name, ok := strings.CutPrefix(v, "minecraft:music_disc_")
+	if !ok || name == "" {
+		return snd, false
+	}
+	return ps.Server.Registries().Sound(plugin.Key{Namespace: "minecraft", Path: "music_disc." + name})
+}
+
+// playPlotMusic starts the plot's disc for p on entering, or stops it on leaving.
+func (ps *Plugin) playPlotMusic(p plugin.Player, plot *plots.Plot, start bool) {
+	snd, ok := ps.plotMusicSound(plot)
+	if !ok {
+		return
+	}
+	if start {
+		p.PlaySound(p.Location().Pos, snd, plugin.SoundRecords, 1, 1)
+	} else {
+		p.StopSound(snd, plugin.SoundRecords)
+	}
+}
