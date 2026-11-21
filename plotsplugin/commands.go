@@ -261,6 +261,11 @@ func (ps *Plugin) dispatchPlotCommand(sender plugin.CommandSender, args []string
 	sub.run(ctx)
 }
 
+// TabComplete returns tab completion candidates for a /plot command argument string.
+func (ps *Plugin) TabComplete(sender plugin.CommandSender, partial string) []string {
+	return ps.tabCompletePlotCommand(sender, partial)
+}
+
 func (ps *Plugin) tabCompletePlotCommand(sender plugin.CommandSender, partial string) []string {
 	if !HasPerm(sender, "plots.use") {
 		return nil
