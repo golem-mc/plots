@@ -45,16 +45,20 @@ type Plugin struct {
 	Lang     *lang.Catalog
 	DB       *storage.DB
 
-	mu         sync.RWMutex
-	areas      map[string][]*plots.PlotArea // keyed by lowercase worldName
-	gens       map[string]*generator.HybridGenerator
-	plotsTmp   map[string]map[plots.PlotId]*plots.Plot
-	clustTmp   map[string][]*plots.PlotCluster
-	statesMu   sync.Mutex
-	states     map[uuid.UUID]*playerState
-	levelOnce  sync.Once
-	levelName  string
-	legacyOnce sync.Once
+	mu              sync.RWMutex
+	areas           map[string][]*plots.PlotArea // keyed by lowercase worldName
+	gens            map[string]*generator.HybridGenerator
+	plotsTmp        map[string]map[plots.PlotId]*plots.Plot
+	clustTmp        map[string][]*plots.PlotCluster
+	statesMu        sync.Mutex
+	states          map[uuid.UUID]*playerState
+	cmds            map[string]*subCommand
+	subCmds         []*subCommand
+	confirmMu       sync.Mutex
+	pendingConfirms map[uuid.UUID]*pendingConfirm
+	levelOnce       sync.Once
+	levelName       string
+	legacyOnce      sync.Once
 }
 
 var current struct {
@@ -189,6 +193,9 @@ func (ps *Plugin) Enable(s plugin.Server) error {
 
 	// Register protection & movement listeners
 	ps.registerProtection()
+
+	// Register /plot commands and tab completion
+	ps.registerCommands()
 
 	// Register WorldEdit region restriction manager
 	ps.registerWorldEditHook()

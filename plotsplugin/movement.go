@@ -18,15 +18,18 @@ type intervalCounter struct {
 }
 
 type playerState struct {
-	lastPlot      *plots.Plot
-	disableTitles bool
-	disableTime   bool
-	plotChat      bool
-	chatSpy       bool
-	savedAllowFly *bool
-	savedGameMode *plugin.GameMode
-	feed          *intervalCounter
-	heal          *intervalCounter
+	lastPlot        *plots.Plot
+	disableTitles   bool
+	disableTime     bool
+	plotChat        bool
+	chatSpy         bool
+	worldeditBypass *bool
+	clearConfirm    bool
+	debug           bool
+	savedAllowFly   *bool
+	savedGameMode   *plugin.GameMode
+	feed            *intervalCounter
+	heal            *intervalCounter
 }
 
 func (ps *Plugin) stateFor(u uuid.UUID) *playerState {

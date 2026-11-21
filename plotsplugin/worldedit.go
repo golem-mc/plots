@@ -38,7 +38,10 @@ func (m *weRegionManager) AllowedRegions(p plugin.Player, w plugin.World) []regi
 		return nil
 	}
 	if HasPerm(p, "plots.worldedit.bypass") {
-		return nil
+		st := m.ps.stateFor(p.UUID())
+		if st.worldeditBypass == nil || *st.worldeditBypass {
+			return nil
+		}
 	}
 
 	uid := p.UUID()
