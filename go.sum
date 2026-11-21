@@ -2,6 +2,8 @@ github.com/dustin/go-humanize v1.1.0 h1:dbKTrvD0klcbBV/h4AWJdMuZogJACoMlvWIWZ5b2
 github.com/dustin/go-humanize v1.1.0/go.mod h1:hc1CvRkJMsgxqjmjMQF3QNRAZBwY8AXBAzKYoSX9sFI=
 github.com/golem-mc/golem v0.1.0 h1:qlKieKHNIkmEzDAETHsY9Hn9soXLbQaNwcVMePErx1I=
 github.com/golem-mc/golem v0.1.0/go.mod h1:SL8kIUQTtUVFSaEUDtr3KeHDJfmAZ7DNMxEI3Eslfdk=
+github.com/golem-mc/vault v0.1.0 h1:46in39L5WfQMrVXFg/Ft/uqsmJjXIyEXZ4in644495w=
+github.com/golem-mc/vault v0.1.0/go.mod h1:rJtZ5F+MPmdpzl6PCSrbDgqsjrl7wfX51j5eHvR8+x8=
 github.com/golem-mc/worldedit v0.1.0 h1:1l/KMsHc5CKLEYAtHeYz9nCA3XlL1EHp9U0Zn0PiUMc=
 github.com/golem-mc/worldedit v0.1.0/go.mod h1:hE/sz7OMW6NTS46Yq/F5v8Y3AKbRcA9vyJ3/ChdF62M=
 github.com/google/pprof v0.0.0-20261016150608-1facf8f91b50 h1:PlNWJRxu5APSV0pWqfIsZ0qt9OOGHSWfZQ4zvx+WgWs=
