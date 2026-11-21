@@ -13,11 +13,14 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/plots"
 	"github.com/golem-mc/plots/event"
+	"github.com/golem-mc/plots/internal/backup"
 	"github.com/golem-mc/plots/internal/config"
+	"github.com/golem-mc/plots/internal/expiry"
 	"github.com/golem-mc/plots/internal/generator"
 	"github.com/golem-mc/plots/internal/lang"
 	"github.com/golem-mc/plots/internal/storage"
@@ -44,6 +47,9 @@ type Plugin struct {
 	Worlds   *config.WorldsFile
 	Lang     *lang.Catalog
 	DB       *storage.DB
+	Backups  *backup.Manager
+	Expiry   *expiry.Manager
+	clockNow func() time.Time
 
 	mu              sync.RWMutex
 	areas           map[string][]*plots.PlotArea // keyed by lowercase worldName
@@ -64,6 +70,13 @@ type Plugin struct {
 var current struct {
 	sync.Mutex
 	ps *Plugin
+}
+
+func (ps *Plugin) now() time.Time {
+	if ps.clockNow != nil {
+		return ps.clockNow()
+	}
+	return time.Now()
 }
 
 // Get returns the currently enabled Plots plugin instance, for tests.
@@ -190,6 +203,11 @@ func (ps *Plugin) Enable(s plugin.Server) error {
 			ps.onNewChunk(e.Chunk)
 		}
 	})
+
+	// Initialize backup and expiry managers
+	ps.Backups = backup.NewManager(s.DataDir(), &ps.Settings.Backup)
+	ps.Expiry = expiry.NewManager()
+	ps.startExpiryTask()
 
 	// Register protection & movement listeners
 	ps.registerProtection()
