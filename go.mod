@@ -6,6 +6,7 @@ tool github.com/golem-mc/golem/launcher
 
 require (
 	github.com/golem-mc/golem v0.1.0
+	github.com/golem-mc/worldedit v0.1.0
 	github.com/google/uuid v1.6.0
 	go.yaml.in/yaml/v4 v4.0.0
 	modernc.org/sqlite v1.62.0
@@ -14,8 +15,10 @@ require (
 require (
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/klauspost/compress v1.20.5 // indirect
+	github.com/magiconair/properties v1.18.13 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
+	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/mod v0.43.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
