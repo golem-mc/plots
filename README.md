@@ -98,7 +98,7 @@ Prefix any subcommand with `<X;Z>` or `<world;X;Z>` to target a specific plot (e
 | `/plot alias <set \| remove> <alias>` | `setalias`, `sa`, `name`, `rename` | Set or remove a plot alias | `plots.alias` |
 | `/plot desc [description]` | `setdescription`, `setdesc`, `description` | Set or clear the plot description | `plots.set.desc` |
 | `/plot flag <set \| add \| remove \| list \| info> [flag] [value]` | `f` | Manage plot protection and behavior flags | `plots.flag`, `plots.set.flag.<flag>.<value>` |
-| `/plot music [disc \| none]` | — | Open the plot music disc menu or set a disc | `plots.music` |
+| `/plot music [disc \| none]` | — | Open the plot music disc menu or set a disc; the disc plays for players entering the plot and stops when they leave | `plots.music` |
 | `/plot toggle <chat \| chatspy \| clear-confirmation \| time \| titles \| worldedit \| debug>` | `attribute` | Toggle personal plot settings | `plots.toggle`, `plots.toggle.<setting>` |
 | `/plot chat [message]` | — | Toggle plot chat or send a message to plot chat | `plots.chat` |
 | `/plot confirm` | — | Confirm a pending destructive command | `plots.confirm` |
