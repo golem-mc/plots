@@ -334,3 +334,46 @@ func TestVaultEconomyBuyPlot(t *testing.T) {
 		t.Errorf("price flag should be cleared after purchase, got %v", v)
 	}
 }
+
+func TestPlotMusicPlaysOnEnter(t *testing.T) {
+	t.Chdir(t.TempDir())
+	srv := plugintest.Start(t)
+	ps, _ := plotsplugin.Get()
+	area, w := setupCompactPlotWorld(t, srv, ps)
+
+	alice := srv.Join("Alice")
+	bob := srv.Join("Bob")
+	p1, err := ps.ClaimPlot(area, plots.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
+	if err != nil {
+		t.Fatalf("ClaimPlot: %v", err)
+	}
+	_, _ = ps.SetFlag(p1, "untrusted-visit", "true")
+	b := area.PlotInteriorBounds(p1.ID)
+	road := plugin.Location{World: w, Pos: plugin.Vec3{X: float64(b.Min.X) - 2, Y: 63, Z: float64(b.Min.Z)}}
+	in := plugin.Location{World: w, Pos: plugin.Vec3{X: float64(b.Min.X) + 2, Y: 63, Z: float64(b.Min.Z) + 2}}
+	bob.Handle().Teleport(road, plugin.TeleportPlugin)
+	srv.RunTicks(2)
+	bob.Sounds(1)
+
+	move := func(from, to plugin.Location) {
+		srv.Host().Events().Fire(&plugin.PlayerMoveEvent{Player: bob.Handle(), From: from, To: to})
+	}
+
+	_, _ = ps.SetFlag(p1, "music", "minecraft:air")
+	move(road, in)
+	if got := bob.Sounds(2); len(got) != 0 {
+		t.Fatalf("air disc played %+v", got)
+	}
+	move(in, road)
+
+	_, _ = ps.SetFlag(p1, "music", "minecraft:music_disc_cat")
+	move(road, in)
+	got := bob.Sounds(2)
+	if len(got) != 1 || got[0].Name != "minecraft:music_disc.cat" || got[0].Category != int32(plugin.SoundRecords) {
+		t.Fatalf("sounds on enter = %+v, want music_disc.cat on records", got)
+	}
+	move(in, road) // StopSound on leave must not fail
+	if got := bob.Sounds(2); len(got) != 0 {
+		t.Errorf("sounds on leave = %+v", got)
+	}
+}
