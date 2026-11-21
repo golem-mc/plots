@@ -344,4 +344,66 @@ func TestProtectionEnvironmentFlagsAndPlotChat(t *testing.T) {
 	if !chatBlocked.Cancelled() {
 		t.Errorf("chat=false flag should cancel PlayerChatEvent")
 	}
+
+	// 4. HighFreqBlockEventListener (BlockRedstoneEvent & BlockPhysicsEvent)
+	_, _ = ps.SetFlag(p1, "redstone", "false")
+	rsOff := &plugin.BlockRedstoneEvent{Block: plugin.Block{World: w, Pos: inP1}, Old: 0, New: 15}
+	host.Events().Fire(rsOff)
+	if rsOff.New != 0 {
+		t.Errorf("redstone=false should clamp BlockRedstoneEvent.New to 0, got %d", rsOff.New)
+	}
+	_, _ = ps.SetFlag(p1, "disable-physics", "true")
+	phys := &plugin.BlockPhysicsEvent{Block: plugin.Block{World: w, Pos: inP1}}
+	host.Events().Fire(phys)
+	if !phys.Cancelled() {
+		t.Errorf("disable-physics=true should cancel BlockPhysicsEvent")
+	}
+
+	// 5. EntitySpawnListener (natural mob spawning blocked when area.MobSpawning=false)
+	spawnEv := &plugin.EntitySpawnEvent{
+		Entity: charlie.Handle(),
+		Reason: plugin.SpawnNatural,
+	}
+	host.Events().Fire(spawnEv)
+	if !spawnEv.Cancelled() {
+		t.Errorf("natural mob spawn should be cancelled when area.MobSpawning=false")
+	}
+
+	// 6. SpigotListener (EntityPotionEffectEvent beacon-effects=false)
+	_, _ = ps.SetFlag(p1, "beacon-effects", "false")
+	beaconEv := &plugin.EntityPotionEffectEvent{
+		Entity: bob.Handle(),
+		Cause:  plugin.EffectBeacon,
+		New:    &plugin.EffectInstance{Duration: 100},
+	}
+	host.Events().Fire(beaconEv)
+	if !beaconEv.Cancelled() {
+		t.Errorf("beacon-effects=false should cancel EntityPotionEffectEvent")
+	}
+
+	// 7. ProjectileEventListener & ProjectileEventListener1211 (arrow shot by outsider in plot)
+	arrow, err := bob.ShootTippedArrow(plugin.MinecraftKey("swiftness"))
+	if err == nil && arrow != nil {
+		launchEv := &plugin.ProjectileLaunchEvent{Projectile: arrow}
+		host.Events().Fire(launchEv)
+		if !launchEv.Cancelled() {
+			t.Errorf("outsider projectile launch should be cancelled when projectiles=false")
+		}
+		hitEv := &plugin.ProjectileHitEvent{Projectile: arrow, Hit: plugin.RayHit{Entity: alice.Handle()}}
+		host.Events().Fire(hitEv)
+		if !hitEv.Cancelled() {
+			t.Errorf("projectile hit on player should be cancelled when pvp=false")
+		}
+	}
+
+	// 8. ForceFieldListener (forcefield=true pushes outsider away from owner on move)
+	_, _ = ps.SetFlag(p1, "forcefield", "true")
+	nearOwner := plugin.Location{World: w, Pos: plugin.Vec3{X: float64(inP1.X) + 1.5, Y: 63, Z: float64(inP1.Z) + 0.5}}
+	bob.Handle().Teleport(nearOwner, plugin.TeleportPlugin)
+	ffMove := &plugin.PlayerMoveEvent{Player: bob.Handle(), From: inP1Loc, To: nearOwner}
+	host.Events().Fire(ffMove)
+	vel := bob.Handle().Velocity()
+	if vel.X == 0 && vel.Y == 0 && vel.Z == 0 {
+		t.Errorf("expected forcefield flag to apply non-zero knockback velocity, got %+v", vel)
+	}
 }

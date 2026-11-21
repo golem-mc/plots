@@ -9,7 +9,7 @@ It is not made or endorsed by IntellectualSites.
 ## Install
 
 ```bash
-golem-launcher plugin add github.com/golem-mc/worldedit/worldeditplugin
+golem-launcher plugin add github.com/golem-mc/worldedit
 golem-launcher plugin add github.com/golem-mc/plots/plotsplugin
 ```
 
@@ -17,7 +17,7 @@ golem-launcher plugin add github.com/golem-mc/plots/plotsplugin
 
 ```bash
 golem-launcher plugin add github.com/golem-mc/vault/vaultplugin   # plot claim/merge/buy/sell economy
-golem-launcher plugin add github.com/golem-mc/perms/permsplugin   # fine-grained permissions
+golem-launcher plugin add github.com/golem-mc/perms               # fine-grained permissions
 ```
 
 ## Getting Started
