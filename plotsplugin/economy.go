@@ -1,17 +1,17 @@
-package plotsquaredplugin
+package plotsplugin
 
 import (
 	"fmt"
 
 	"github.com/golem-mc/golem/plugin"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/event"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/event"
 	"github.com/golem-mc/vault"
 	"github.com/google/uuid"
 )
 
 // Economy returns the registered Vault Economy provider if economy is enabled in settings.yml.
-func (ps *PlotSquared) Economy() (vault.Economy, bool) {
+func (ps *Plugin) Economy() (vault.Economy, bool) {
 	if ps.Settings != nil && !ps.Settings.EnabledComponents.Economy {
 		return nil, false
 	}
@@ -20,7 +20,7 @@ func (ps *PlotSquared) Economy() (vault.Economy, bool) {
 
 // ChargeAreaPrice withdraws an area economy price (claim/merge) from player if economy is active.
 // Returns (cost, true, nil) on success, or (cost, false, err) if the player cannot afford it.
-func (ps *PlotSquared) ChargeAreaPrice(p plugin.Player, area *plotsquared.PlotArea, expr string) (float64, bool, error) {
+func (ps *Plugin) ChargeAreaPrice(p plugin.Player, area *plots.PlotArea, expr string) (float64, bool, error) {
 	if p == nil || area == nil || !area.UseEconomy || HasPerm(p, "plots.eco.bypass") {
 		return 0, true, nil
 	}
@@ -29,7 +29,7 @@ func (ps *PlotSquared) ChargeAreaPrice(p plugin.Player, area *plotsquared.PlotAr
 		return 0, true, nil
 	}
 	owned := len(ps.PlotsByOwner(p.UUID()))
-	cost := plotsquared.EvalPrice(expr, owned)
+	cost := plots.EvalPrice(expr, owned)
 	if cost <= 0 {
 		return 0, true, nil
 	}
@@ -44,7 +44,7 @@ func (ps *PlotSquared) ChargeAreaPrice(p plugin.Player, area *plotsquared.PlotAr
 }
 
 // RefundAreaPrice deposits money back to a player (e.g. on plot delete/sell).
-func (ps *PlotSquared) RefundAreaPrice(u uuid.UUID, area *plotsquared.PlotArea, expr string) float64 {
+func (ps *Plugin) RefundAreaPrice(u uuid.UUID, area *plots.PlotArea, expr string) float64 {
 	if u == uuid.Nil || area == nil || !area.UseEconomy {
 		return 0
 	}
@@ -52,7 +52,7 @@ func (ps *PlotSquared) RefundAreaPrice(u uuid.UUID, area *plotsquared.PlotArea, 
 	if !ok {
 		return 0
 	}
-	amount := plotsquared.EvalPrice(expr, len(ps.PlotsByOwner(u)))
+	amount := plots.EvalPrice(expr, len(ps.PlotsByOwner(u)))
 	if amount <= 0 {
 		return 0
 	}
@@ -61,7 +61,7 @@ func (ps *PlotSquared) RefundAreaPrice(u uuid.UUID, area *plotsquared.PlotArea, 
 }
 
 // BuyPlot transfers a plot that has a positive `price` flag from its current owner to buyer via Vault.
-func (ps *PlotSquared) BuyPlot(buyer plugin.Player, plot *plotsquared.Plot) (float64, error) {
+func (ps *Plugin) BuyPlot(buyer plugin.Player, plot *plots.Plot) (float64, error) {
 	if buyer == nil || plot == nil || !plot.HasOwner() {
 		return 0, fmt.Errorf("plot is not for sale")
 	}

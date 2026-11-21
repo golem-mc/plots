@@ -1,4 +1,4 @@
-package plotsquaredplugin
+package plotsplugin
 
 import (
 	"github.com/golem-mc/golem/plugin"
@@ -7,10 +7,10 @@ import (
 )
 
 type weRegionManager struct {
-	ps *PlotSquared
+	ps *Plugin
 }
 
-func (ps *PlotSquared) registerWorldEditHook() {
+func (ps *Plugin) registerWorldEditHook() {
 	we, ok := plugin.Service[worldedit.API](ps.Server)
 	if !ok {
 		return
@@ -19,7 +19,7 @@ func (ps *PlotSquared) registerWorldEditHook() {
 }
 
 func (m *weRegionManager) Name() string {
-	return "PlotSquared"
+	return "plots"
 }
 
 // AllowedRegions returns the WorldEdit regions p may modify in w:

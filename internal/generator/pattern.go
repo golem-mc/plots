@@ -9,7 +9,7 @@ import (
 
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/registry"
-	"github.com/golem-mc/plotsquared"
+	"github.com/golem-mc/plots"
 	"github.com/golem-mc/worldedit/block"
 )
 
@@ -27,7 +27,7 @@ type CompiledPattern struct {
 
 // CompileBucket resolves every block entry in bucket into a plugin.BlockState.
 // Falls back to fallback if bucket is empty or invalid.
-func CompileBucket(bucket plotsquared.BlockBucket, fallback registry.Block) CompiledPattern {
+func CompileBucket(bucket plots.BlockBucket, fallback registry.Block) CompiledPattern {
 	entries := make([]CompiledEntry, 0, len(bucket.Entries))
 	total := 0
 	for _, e := range bucket.Entries {
@@ -139,7 +139,7 @@ func ResolveBiome(name string) (registry.Biome, bool) {
 // ApplyGeneratorSpec applies a Bukkit generator argument string such as
 // "s=42,g=7,h=62,f=grass_block,m=stone,w=stone,b=smooth_stone_slab" to area.
 // Matches upstream PlotSquared.java setupWorldArgs.
-func ApplyGeneratorSpec(area *plotsquared.PlotArea, spec string) error {
+func ApplyGeneratorSpec(area *plots.PlotArea, spec string) error {
 	spec = strings.TrimSpace(spec)
 	if spec == "" {
 		return nil
@@ -217,25 +217,25 @@ func ApplyGeneratorSpec(area *plotsquared.PlotArea, spec string) error {
 			}
 			area.MaxGenHeight = n
 		case "f", "floor":
-			b, err := plotsquared.ParseBlockBucket(v)
+			b, err := plots.ParseBlockBucket(v)
 			if err != nil {
 				return err
 			}
 			area.TopBlock = b
 		case "m", "main":
-			b, err := plotsquared.ParseBlockBucket(v)
+			b, err := plots.ParseBlockBucket(v)
 			if err != nil {
 				return err
 			}
 			area.MainBlock = b
 		case "w", "wall":
-			b, err := plotsquared.ParseBlockBucket(v)
+			b, err := plots.ParseBlockBucket(v)
 			if err != nil {
 				return err
 			}
 			area.WallFilling = b
 		case "b", "border":
-			b, err := plotsquared.ParseBlockBucket(v)
+			b, err := plots.ParseBlockBucket(v)
 			if err != nil {
 				return err
 			}

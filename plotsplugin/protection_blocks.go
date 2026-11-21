@@ -1,4 +1,4 @@
-package plotsquaredplugin
+package plotsplugin
 
 import (
 	"slices"
@@ -6,12 +6,12 @@ import (
 
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/registry"
-	"github.com/golem-mc/plotsquared"
+	"github.com/golem-mc/plots"
 	"github.com/golem-mc/worldedit/block"
 )
 
 // registerProtection attaches all block, player, entity, and movement protection listeners.
-func (ps *PlotSquared) registerProtection() {
+func (ps *Plugin) registerProtection() {
 	if ps.Settings != nil && !ps.Settings.EnabledComponents.Events {
 		return
 	}
@@ -21,7 +21,7 @@ func (ps *PlotSquared) registerProtection() {
 	ps.registerMovementListeners()
 }
 
-func (ps *PlotSquared) canBuild(p plugin.Player, area *plotsquared.PlotArea, plot *plotsquared.Plot, pos plugin.BlockPos, isBreak bool, st plugin.BlockState) bool {
+func (ps *Plugin) canBuild(p plugin.Player, area *plots.PlotArea, plot *plots.Plot, pos plugin.BlockPos, isBreak bool, st plugin.BlockState) bool {
 	if area == nil {
 		return true
 	}
@@ -86,7 +86,7 @@ func (ps *PlotSquared) canBuild(p plugin.Player, area *plotsquared.PlotArea, plo
 }
 
 // isAddedAndAllowed returns true if player is owner, trusted, or a member with an owner online.
-func (ps *PlotSquared) isAddedAndAllowed(p plugin.Player, plot *plotsquared.Plot) bool {
+func (ps *Plugin) isAddedAndAllowed(p plugin.Player, plot *plots.Plot) bool {
 	if p == nil || plot == nil || !plot.HasOwner() {
 		return false
 	}
@@ -104,7 +104,7 @@ func (ps *PlotSquared) isAddedAndAllowed(p plugin.Player, plot *plotsquared.Plot
 	return false
 }
 
-func matchesBlockListFlag(plot *plotsquared.Plot, flagName string, st plugin.BlockState) bool {
+func matchesBlockListFlag(plot *plots.Plot, flagName string, st plugin.BlockState) bool {
 	if plot == nil {
 		return false
 	}
@@ -134,7 +134,7 @@ func matchesBlockListFlag(plot *plotsquared.Plot, flagName string, st plugin.Blo
 	return false
 }
 
-func (ps *PlotSquared) roadFlagBool(area *plotsquared.PlotArea, flagName string) bool {
+func (ps *Plugin) roadFlagBool(area *plots.PlotArea, flagName string) bool {
 	if area == nil || !area.HasRoadFlags {
 		return false
 	}
@@ -142,13 +142,13 @@ func (ps *PlotSquared) roadFlagBool(area *plotsquared.PlotArea, flagName string)
 	return v
 }
 
-func (ps *PlotSquared) registerBlockListeners() {
+func (ps *Plugin) registerBlockListeners() {
 	ps.registerBlockBuildListeners()
 	ps.registerBlockNatureListeners()
 	ps.registerBlockMechanicListeners()
 }
 
-func (ps *PlotSquared) registerBlockBuildListeners() {
+func (ps *Plugin) registerBlockBuildListeners() {
 	s := ps.Server
 	opts := plugin.ListenOptions{Priority: plugin.High, IgnoreCancelled: true}
 
@@ -275,7 +275,7 @@ func (ps *PlotSquared) registerBlockBuildListeners() {
 	}, opts)
 }
 
-func (ps *PlotSquared) registerBlockNatureListeners() {
+func (ps *Plugin) registerBlockNatureListeners() {
 	s := ps.Server
 	opts := plugin.ListenOptions{Priority: plugin.High, IgnoreCancelled: true}
 
@@ -456,7 +456,7 @@ func (ps *PlotSquared) registerBlockNatureListeners() {
 	}, opts)
 }
 
-func (ps *PlotSquared) registerBlockMechanicListeners() {
+func (ps *Plugin) registerBlockMechanicListeners() {
 	s := ps.Server
 	opts := plugin.ListenOptions{Priority: plugin.High, IgnoreCancelled: true}
 
@@ -679,7 +679,7 @@ func firstPortalPos(blocks []plugin.BlockChange) plugin.BlockPos {
 	return blocks[0].Pos
 }
 
-func (ps *PlotSquared) anyPlotMemberOnline(plot *plotsquared.Plot) bool {
+func (ps *Plugin) anyPlotMemberOnline(plot *plots.Plot) bool {
 	for _, owner := range plot.Owners() {
 		if _, ok := ps.Server.Player(owner); ok {
 			return true
@@ -699,7 +699,7 @@ func (ps *PlotSquared) anyPlotMemberOnline(plot *plotsquared.Plot) bool {
 	return false
 }
 
-func (ps *PlotSquared) anyPlayerInPlot(plot *plotsquared.Plot) bool {
+func (ps *Plugin) anyPlayerInPlot(plot *plots.Plot) bool {
 	if plot == nil || plot.Area == nil {
 		return false
 	}

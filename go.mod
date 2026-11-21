@@ -1,4 +1,4 @@
-module github.com/golem-mc/plotsquared
+module github.com/golem-mc/plots
 
 go 1.27.4
 

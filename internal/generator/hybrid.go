@@ -7,8 +7,8 @@ import (
 
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/registry"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/internal/config"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/internal/config"
 	"github.com/golem-mc/worldedit/block"
 	westorage "github.com/golem-mc/worldedit/storage"
 )
@@ -24,7 +24,7 @@ type schemCell struct {
 type HybridGenerator struct {
 	mu sync.RWMutex
 
-	Area *plotsquared.PlotArea
+	Area *plots.PlotArea
 
 	mainPat   CompiledPattern
 	topPat    CompiledPattern
@@ -46,7 +46,7 @@ type HybridGenerator struct {
 }
 
 // NewHybridGenerator builds a thread-safe HybridGenerator for area.
-func NewHybridGenerator(area *plotsquared.PlotArea, dataDir string, settings *config.Settings) *HybridGenerator {
+func NewHybridGenerator(area *plots.PlotArea, dataDir string, settings *config.Settings) *HybridGenerator {
 	g := &HybridGenerator{Area: area}
 	g.Reload(dataDir, settings)
 	return g
@@ -136,8 +136,8 @@ func (g *HybridGenerator) Reload(dataDir string, settings *config.Settings) {
 				centerZ := (a.PlotWidth - s3.Length) / 2
 				for x := 0; x < s3.Width; x++ {
 					for z := 0; z < s3.Length; z++ {
-						rx := plotsquared.FloorMod(x+shift+oddShift+centerX, a.Size)
-						rz := plotsquared.FloorMod(z+shift+oddShift+centerZ, a.Size)
+						rx := plots.FloorMod(x+shift+oddShift+centerX, a.Size)
+						rz := plots.FloorMod(z+shift+oddShift+centerZ, a.Size)
 						for y := 0; y < s3.Height; y++ {
 							st := s3.GetRel(x, y, z)
 							addOverlay(overlayBlocks, rx, y+plotY, rz, st, maxH)
@@ -154,10 +154,10 @@ func (g *HybridGenerator) Reload(dataDir string, settings *config.Settings) {
 				// Sideroad (unrotated + rotated 90 deg CW for perpendicular road)
 				for x := 0; x < s1.Width; x++ {
 					for z := 0; z < s1.Length; z++ {
-						rx1 := plotsquared.FloorMod(x-shift, a.Size)
-						rz1 := plotsquared.FloorMod(z+shift+oddShift, a.Size)
-						rx2 := plotsquared.FloorMod(z+shift+oddShift, a.Size)
-						rz2 := plotsquared.FloorMod(shift-x+(oddShift-1), a.Size)
+						rx1 := plots.FloorMod(x-shift, a.Size)
+						rz1 := plots.FloorMod(z+shift+oddShift, a.Size)
+						rx2 := plots.FloorMod(z+shift+oddShift, a.Size)
+						rz2 := plots.FloorMod(shift-x+(oddShift-1), a.Size)
 						for y := 0; y < s1.Height; y++ {
 							st := s1.GetRel(x, y, z)
 							addOverlay(overlayBlocks, rx1, y+roadY, rz1, st, maxH)
@@ -173,8 +173,8 @@ func (g *HybridGenerator) Reload(dataDir string, settings *config.Settings) {
 				// Intersection
 				for x := 0; x < s2.Width; x++ {
 					for z := 0; z < s2.Length; z++ {
-						rx := plotsquared.FloorMod(x-shift, a.Size)
-						rz := plotsquared.FloorMod(z-shift, a.Size)
+						rx := plots.FloorMod(x-shift, a.Size)
+						rz := plots.FloorMod(z-shift, a.Size)
 						for y := 0; y < s2.Height; y++ {
 							st := s2.GetRel(x, y, z)
 							addOverlay(overlayBlocks, rx, y+roadY, rz, st, maxH)
@@ -254,8 +254,8 @@ func (g *HybridGenerator) Generate(c plugin.ChunkWriter, rng plugin.Random) {
 	// Compute relative coordinates and road/wall masks for the 16x16 chunk.
 	var relX, relZ [16]int
 	var inRoadX, inWallX, inRoadZ, inWallZ [16]bool
-	offX := plotsquared.FloorMod(baseX-a.RoadOffsetX, a.Size)
-	offZ := plotsquared.FloorMod(baseZ-a.RoadOffsetZ, a.Size)
+	offX := plots.FloorMod(baseX-a.RoadOffsetX, a.Size)
+	offZ := plots.FloorMod(baseZ-a.RoadOffsetZ, a.Size)
 	for i := range 16 {
 		if offX >= a.Size {
 			offX -= a.Size
@@ -382,7 +382,7 @@ func (g *HybridGenerator) AugmentChunk(w plugin.World, chunk plugin.Chunk) {
 	plotBiome := g.plotBiome
 	g.mu.RUnlock()
 
-	if a.Size <= 0 || a.Type == plotsquared.AreaNormal {
+	if a.Size <= 0 || a.Type == plots.AreaNormal {
 		return
 	}
 	pos := chunk.Pos()
@@ -402,20 +402,20 @@ func (g *HybridGenerator) AugmentChunk(w plugin.World, chunk plugin.Chunk) {
 			if !a.ContainsXZ(wx, wz) {
 				continue
 			}
-			rx := plotsquared.FloorMod(wx-a.RoadOffsetX, a.Size)
-			rz := plotsquared.FloorMod(wz-a.RoadOffsetZ, a.Size)
+			rx := plots.FloorMod(wx-a.RoadOffsetX, a.Size)
+			rz := plots.FloorMod(wz-a.RoadOffsetZ, a.Size)
 			isRoad := a.RoadWidth > 0 && (rx < a.PathWidthLower || rx > a.PathWidthUpper || rz < a.PathWidthLower || rz > a.PathWidthUpper)
 			isWall := a.RoadWidth > 0 && !isRoad && (rx == a.PathWidthLower || rx == a.PathWidthUpper || rz == a.PathWidthLower || rz == a.PathWidthUpper)
 
 			// Respect terrain preservation mode
 			switch a.Terrain {
-			case plotsquared.TerrainAll:
+			case plots.TerrainAll:
 				continue
-			case plotsquared.TerrainRoad:
+			case plots.TerrainRoad:
 				if !isRoad && !isWall {
 					continue
 				}
-			case plotsquared.TerrainOre:
+			case plots.TerrainOre:
 				if !isRoad && !isWall {
 					continue
 				}
@@ -487,9 +487,9 @@ func (g *HybridGenerator) ApplySchematicOverlay(w plugin.World, minP, maxP plugi
 		minY = schemY
 	}
 	for x := minP.X; x <= maxP.X; x++ {
-		rx := plotsquared.FloorMod(x-a.RoadOffsetX, a.Size)
+		rx := plots.FloorMod(x-a.RoadOffsetX, a.Size)
 		for z := minP.Z; z <= maxP.Z; z++ {
-			rz := plotsquared.FloorMod(z-a.RoadOffsetZ, a.Size)
+			rz := plots.FloorMod(z-a.RoadOffsetZ, a.Size)
 			key := pairXZ(rx, rz)
 			if cell := overlayBlocks[key]; cell != nil {
 				for y, st := range cell.blocks {
@@ -505,7 +505,7 @@ func (g *HybridGenerator) ApplySchematicOverlay(w plugin.World, minP, maxP plugi
 	}
 }
 
-func schematicStartHeight(a *plotsquared.PlotArea, useWall bool) int {
+func schematicStartHeight(a *plots.PlotArea, useWall bool) int {
 	m := min(a.PlotHeight, a.RoadHeight)
 	if useWall && a.WallHeight < m {
 		return a.WallHeight

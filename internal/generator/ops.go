@@ -7,14 +7,14 @@ import (
 
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/registry"
-	"github.com/golem-mc/plotsquared"
+	"github.com/golem-mc/plots"
 	"github.com/golem-mc/worldedit/region"
 	westorage "github.com/golem-mc/worldedit/storage"
 )
 
 // ClearPlot clears all regions of plot back to default terrain (or regenerates for augmented terrain)
 // and removes non-player entities inside the plot.
-func ClearPlot(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot, gen *HybridGenerator) {
+func ClearPlot(w plugin.World, area *plots.PlotArea, plot *plots.Plot, gen *HybridGenerator) {
 	if w == nil || area == nil || plot == nil {
 		return
 	}
@@ -76,7 +76,7 @@ func ClearPlot(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plo
 }
 
 // SetComponent applies a BlockBucket pattern to a plot component (floor, main, wall, border, all, air, outline, middle).
-func SetComponent(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot, comp plotsquared.PlotComponent, bucket plotsquared.BlockBucket) bool {
+func SetComponent(w plugin.World, area *plots.PlotArea, plot *plots.Plot, comp plots.PlotComponent, bucket plots.BlockBucket) bool {
 	if w == nil || area == nil || plot == nil {
 		return false
 	}
@@ -87,36 +87,36 @@ func SetComponent(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.
 	maxY := min(area.MaxBuildHeight-1, w.MinY()+w.Height()-1)
 
 	switch comp {
-	case plotsquared.ComponentFloor:
+	case plots.ComponentFloor:
 		setCuboids(w, regions, area.PlotHeight, area.PlotHeight, pat)
 		return true
-	case plotsquared.ComponentMain:
+	case plots.ComponentMain:
 		setCuboids(w, regions, minCompY, area.PlotHeight-1, pat)
 		return true
-	case plotsquared.ComponentAir:
+	case plots.ComponentAir:
 		setCuboids(w, regions, area.PlotHeight+1, maxY, pat)
 		return true
-	case plotsquared.ComponentAll:
+	case plots.ComponentAll:
 		setCuboids(w, regions, minCompY, maxY, pat)
 		return true
-	case plotsquared.ComponentMiddle:
+	case plots.ComponentMiddle:
 		bMin, bMax := mergedOuterBounds(area, base)
 		mx := (bMin.X + bMax.X) / 2
 		mz := (bMin.Z + bMax.Z) / 2
 		w.SetBlockState(plugin.BlockPos{X: mx, Y: area.PlotHeight, Z: mz}, pat.PickCoord(mx, area.PlotHeight, mz), plugin.UpdateClients)
 		return true
-	case plotsquared.ComponentWall:
+	case plots.ComponentWall:
 		return setWalls(w, area, base, minCompY, area.WallHeight, pat)
-	case plotsquared.ComponentBorder:
+	case plots.ComponentBorder:
 		return setWalls(w, area, base, area.WallHeight+1, area.WallHeight+1, pat)
-	case plotsquared.ComponentOutline:
+	case plots.ComponentOutline:
 		return setOutline(w, area, base, area.PlotHeight, maxY, pat)
 	default:
 		return false
 	}
 }
 
-func setCuboids(w plugin.World, regions []plotsquared.RegionBounds, yMin, yMax int, pat CompiledPattern) {
+func setCuboids(w plugin.World, regions []plots.RegionBounds, yMin, yMax int, pat CompiledPattern) {
 	if yMin > yMax {
 		return
 	}
@@ -131,9 +131,9 @@ func setCuboids(w plugin.World, regions []plotsquared.RegionBounds, yMin, yMax i
 	}
 }
 
-func setWalls(w plugin.World, area *plotsquared.PlotArea, base *plotsquared.Plot, yMin, yMax int, pat CompiledPattern) bool {
-	if area.RoadWidth == 0 || area.Terrain == plotsquared.TerrainAll {
-		return area.Terrain == plotsquared.TerrainAll
+func setWalls(w plugin.World, area *plots.PlotArea, base *plots.Plot, yMin, yMax int, pat CompiledPattern) bool {
+	if area.RoadWidth == 0 || area.Terrain == plots.TerrainAll {
+		return area.Terrain == plots.TerrainAll
 	}
 	if yMin > yMax {
 		return true
@@ -141,38 +141,38 @@ func setWalls(w plugin.World, area *plotsquared.PlotArea, base *plotsquared.Plot
 	for _, cp := range base.ConnectedPlots() {
 		b := area.PlotInteriorBounds(cp.ID)
 		xMin := b.Min.X
-		if !cp.IsMergedDir(plotsquared.DirWest) {
+		if !cp.IsMergedDir(plots.DirWest) {
 			xMin--
 		}
 		zMin := b.Min.Z
-		if !cp.IsMergedDir(plotsquared.DirNorth) {
+		if !cp.IsMergedDir(plots.DirNorth) {
 			zMin--
 		}
 		xMax := b.Max.X + 1
 		zMax := b.Max.Z + 1
 
-		if !cp.IsMergedDir(plotsquared.DirNorth) {
+		if !cp.IsMergedDir(plots.DirNorth) {
 			for x := xMin; x <= xMax; x++ {
 				for y := yMin; y <= yMax; y++ {
 					w.SetBlockState(plugin.BlockPos{X: x, Y: y, Z: zMin}, pat.PickCoord(x, y, zMin), plugin.UpdateClients)
 				}
 			}
 		}
-		if !cp.IsMergedDir(plotsquared.DirWest) {
+		if !cp.IsMergedDir(plots.DirWest) {
 			for z := zMin; z <= zMax; z++ {
 				for y := yMin; y <= yMax; y++ {
 					w.SetBlockState(plugin.BlockPos{X: xMin, Y: y, Z: z}, pat.PickCoord(xMin, y, z), plugin.UpdateClients)
 				}
 			}
 		}
-		if !cp.IsMergedDir(plotsquared.DirSouth) {
+		if !cp.IsMergedDir(plots.DirSouth) {
 			for x := xMin; x <= xMax; x++ {
 				for y := yMin; y <= yMax; y++ {
 					w.SetBlockState(plugin.BlockPos{X: x, Y: y, Z: zMax}, pat.PickCoord(x, y, zMax), plugin.UpdateClients)
 				}
 			}
 		}
-		if !cp.IsMergedDir(plotsquared.DirEast) {
+		if !cp.IsMergedDir(plots.DirEast) {
 			for z := zMin; z <= zMax; z++ {
 				for y := yMin; y <= yMax; y++ {
 					w.SetBlockState(plugin.BlockPos{X: xMax, Y: y, Z: z}, pat.PickCoord(xMax, y, z), plugin.UpdateClients)
@@ -183,34 +183,34 @@ func setWalls(w plugin.World, area *plotsquared.PlotArea, base *plotsquared.Plot
 	return true
 }
 
-func setOutline(w plugin.World, area *plotsquared.PlotArea, base *plotsquared.Plot, yMin, yMax int, pat CompiledPattern) bool {
+func setOutline(w plugin.World, area *plots.PlotArea, base *plots.Plot, yMin, yMax int, pat CompiledPattern) bool {
 	if area.RoadWidth == 0 {
 		return false
 	}
 	for _, cp := range base.ConnectedPlots() {
 		b := area.PlotInteriorBounds(cp.ID)
-		if !cp.IsMergedDir(plotsquared.DirNorth) {
+		if !cp.IsMergedDir(plots.DirNorth) {
 			for x := b.Min.X; x <= b.Max.X; x++ {
 				for y := yMin; y <= yMax; y++ {
 					w.SetBlockState(plugin.BlockPos{X: x, Y: y, Z: b.Min.Z}, pat.PickCoord(x, y, b.Min.Z), plugin.UpdateClients)
 				}
 			}
 		}
-		if !cp.IsMergedDir(plotsquared.DirSouth) {
+		if !cp.IsMergedDir(plots.DirSouth) {
 			for x := b.Min.X; x <= b.Max.X; x++ {
 				for y := yMin; y <= yMax; y++ {
 					w.SetBlockState(plugin.BlockPos{X: x, Y: y, Z: b.Max.Z}, pat.PickCoord(x, y, b.Max.Z), plugin.UpdateClients)
 				}
 			}
 		}
-		if !cp.IsMergedDir(plotsquared.DirWest) {
+		if !cp.IsMergedDir(plots.DirWest) {
 			for z := b.Min.Z; z <= b.Max.Z; z++ {
 				for y := yMin; y <= yMax; y++ {
 					w.SetBlockState(plugin.BlockPos{X: b.Min.X, Y: y, Z: z}, pat.PickCoord(b.Min.X, y, z), plugin.UpdateClients)
 				}
 			}
 		}
-		if !cp.IsMergedDir(plotsquared.DirEast) {
+		if !cp.IsMergedDir(plots.DirEast) {
 			for z := b.Min.Z; z <= b.Max.Z; z++ {
 				for y := yMin; y <= yMax; y++ {
 					w.SetBlockState(plugin.BlockPos{X: b.Max.X, Y: y, Z: z}, pat.PickCoord(b.Max.X, y, z), plugin.UpdateClients)
@@ -222,7 +222,7 @@ func setOutline(w plugin.World, area *plotsquared.PlotArea, base *plotsquared.Pl
 }
 
 // SetPlotBiome sets the biome across all regions of plot.
-func SetPlotBiome(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot, biome registry.Biome) {
+func SetPlotBiome(w plugin.World, area *plots.PlotArea, plot *plots.Plot, biome registry.Biome) {
 	if w == nil || area == nil || plot == nil {
 		return
 	}
@@ -241,19 +241,19 @@ func SetPlotBiome(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.
 
 // SignLocation returns the world block position of a plot's claim sign.
 // Matches upstream HybridPlotWorld.getSignLocation: (bottom.X - 1, RoadHeight + 1, bottom.Z - 2).
-func SignLocation(area *plotsquared.PlotArea, plot *plotsquared.Plot) plugin.BlockPos {
+func SignLocation(area *plots.PlotArea, plot *plots.Plot) plugin.BlockPos {
 	base := plot.BasePlot()
 	b := area.PlotInteriorBounds(base.ID)
 	return plugin.BlockPos{X: b.Min.X - 1, Y: area.RoadHeight + 1, Z: b.Min.Z - 2}
 }
 
 // ClaimPlotBlocks updates a claimed plot's border wall and places a claim sign if enabled.
-func ClaimPlotBlocks(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot, ownerName string) {
+func ClaimPlotBlocks(w plugin.World, area *plots.PlotArea, plot *plots.Plot, ownerName string) {
 	if w == nil || area == nil || plot == nil {
 		return
 	}
 	if area.PlaceTopBlock && area.RoadWidth > 0 {
-		SetComponent(w, area, plot, plotsquared.ComponentBorder, area.ClaimedWallBlock)
+		SetComponent(w, area, plot, plots.ComponentBorder, area.ClaimedWallBlock)
 	}
 	if area.AllowSigns && area.RoadWidth >= 2 {
 		pos := SignLocation(area, plot)
@@ -279,14 +279,14 @@ func ClaimPlotBlocks(w plugin.World, area *plotsquared.PlotArea, plot *plotsquar
 }
 
 // UnclaimPlotBlocks restores a plot's wall/border to unclaimed blocks and removes the claim sign.
-func UnclaimPlotBlocks(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot) {
+func UnclaimPlotBlocks(w plugin.World, area *plots.PlotArea, plot *plots.Plot) {
 	if w == nil || area == nil || plot == nil {
 		return
 	}
 	if area.RoadWidth > 0 {
-		SetComponent(w, area, plot, plotsquared.ComponentWall, area.WallFilling)
+		SetComponent(w, area, plot, plots.ComponentWall, area.WallFilling)
 		if area.PlaceTopBlock {
-			SetComponent(w, area, plot, plotsquared.ComponentBorder, area.WallBlock)
+			SetComponent(w, area, plot, plots.ComponentBorder, area.WallBlock)
 		}
 	}
 	if area.AllowSigns && area.RoadWidth >= 2 {
@@ -296,7 +296,7 @@ func UnclaimPlotBlocks(w plugin.World, area *plotsquared.PlotArea, plot *plotsqu
 }
 
 // RemoveRoadEast replaces the road strip east of id with plot filling/floor/air.
-func RemoveRoadEast(w plugin.World, area *plotsquared.PlotArea, id plotsquared.PlotId) {
+func RemoveRoadEast(w plugin.World, area *plots.PlotArea, id plots.PlotId) {
 	if w == nil || area.RoadWidth <= 0 {
 		return
 	}
@@ -307,7 +307,7 @@ func RemoveRoadEast(w plugin.World, area *plotsquared.PlotArea, id plotsquared.P
 }
 
 // RemoveRoadSouth replaces the road strip south of id with plot filling/floor/air.
-func RemoveRoadSouth(w plugin.World, area *plotsquared.PlotArea, id plotsquared.PlotId) {
+func RemoveRoadSouth(w plugin.World, area *plots.PlotArea, id plots.PlotId) {
 	if w == nil || area.RoadWidth <= 0 {
 		return
 	}
@@ -318,7 +318,7 @@ func RemoveRoadSouth(w plugin.World, area *plotsquared.PlotArea, id plotsquared.
 }
 
 // RemoveRoadSouthEast replaces the 2x2 intersection southeast of id with plot filling/floor/air.
-func RemoveRoadSouthEast(w plugin.World, area *plotsquared.PlotArea, id plotsquared.PlotId) {
+func RemoveRoadSouthEast(w plugin.World, area *plots.PlotArea, id plots.PlotId) {
 	if w == nil || area.RoadWidth <= 0 {
 		return
 	}
@@ -330,7 +330,7 @@ func RemoveRoadSouthEast(w plugin.World, area *plotsquared.PlotArea, id plotsqua
 	fillRoadWithPlot(w, area, sx, ex, sz, ez)
 }
 
-func fillRoadWithPlot(w plugin.World, area *plotsquared.PlotArea, sx, ex, sz, ez int) {
+func fillRoadWithPlot(w plugin.World, area *plots.PlotArea, sx, ex, sz, ez int) {
 	air := plugin.DefaultState(registry.BlockAir)
 	mainPat := CompileBucket(area.MainBlock, registry.BlockStone)
 	topPat := CompileBucket(area.TopBlock, registry.BlockGrassBlock)
@@ -359,7 +359,7 @@ func fillRoadWithPlot(w plugin.World, area *plotsquared.PlotArea, sx, ex, sz, ez
 }
 
 // CreateRoadEast restores the road and walls east of id (used when unlinking plots).
-func CreateRoadEast(w plugin.World, area *plotsquared.PlotArea, id plotsquared.PlotId, gen *HybridGenerator) {
+func CreateRoadEast(w plugin.World, area *plots.PlotArea, id plots.PlotId, gen *HybridGenerator) {
 	if w == nil || area.RoadWidth <= 0 {
 		return
 	}
@@ -372,7 +372,7 @@ func CreateRoadEast(w plugin.World, area *plotsquared.PlotArea, id plotsquared.P
 }
 
 // CreateRoadSouth restores the road and walls south of id.
-func CreateRoadSouth(w plugin.World, area *plotsquared.PlotArea, id plotsquared.PlotId, gen *HybridGenerator) {
+func CreateRoadSouth(w plugin.World, area *plots.PlotArea, id plots.PlotId, gen *HybridGenerator) {
 	if w == nil || area.RoadWidth <= 0 {
 		return
 	}
@@ -385,7 +385,7 @@ func CreateRoadSouth(w plugin.World, area *plotsquared.PlotArea, id plotsquared.
 }
 
 // CreateRoadSouthEast restores the 2x2 intersection southeast of id.
-func CreateRoadSouthEast(w plugin.World, area *plotsquared.PlotArea, id plotsquared.PlotId, gen *HybridGenerator) {
+func CreateRoadSouthEast(w plugin.World, area *plots.PlotArea, id plots.PlotId, gen *HybridGenerator) {
 	if w == nil || area.RoadWidth <= 0 {
 		return
 	}
@@ -397,7 +397,7 @@ func CreateRoadSouthEast(w plugin.World, area *plotsquared.PlotArea, id plotsqua
 	restoreRoadBox(w, area, sx, ex, sz, ez, false, false, gen)
 }
 
-func writeRoadOrWallColumn(w plugin.World, area *plotsquared.PlotArea, x, z, startY, maxY int, isWall bool, roadPat, wallFill, wallTop CompiledPattern, air plugin.BlockState) {
+func writeRoadOrWallColumn(w plugin.World, area *plots.PlotArea, x, z, startY, maxY int, isWall bool, roadPat, wallFill, wallTop CompiledPattern, air plugin.BlockState) {
 	if isWall {
 		for y := startY; y <= area.WallHeight && y <= maxY; y++ {
 			w.SetBlockState(plugin.BlockPos{X: x, Y: y, Z: z}, wallFill.PickCoord(x, y, z), plugin.UpdateClients)
@@ -426,7 +426,7 @@ func writeRoadOrWallColumn(w plugin.World, area *plotsquared.PlotArea, x, z, sta
 	}
 }
 
-func restoreRoadBox(w plugin.World, area *plotsquared.PlotArea, sx, ex, sz, ez int, wallX, wallZ bool, gen *HybridGenerator) {
+func restoreRoadBox(w plugin.World, area *plots.PlotArea, sx, ex, sz, ez int, wallX, wallZ bool, gen *HybridGenerator) {
 	air := plugin.DefaultState(registry.BlockAir)
 	bedrock := plugin.DefaultState(registry.BlockBedrock)
 	roadPat := CompileBucket(area.RoadBlock, registry.BlockQuartzBlock)
@@ -455,7 +455,7 @@ func restoreRoadBox(w plugin.World, area *plotsquared.PlotArea, sx, ex, sz, ez i
 }
 
 // CopyPlotBlocks copies all blocks from src plot to dst plot (single plots of matching width).
-func CopyPlotBlocks(srcW plugin.World, srcArea *plotsquared.PlotArea, srcID plotsquared.PlotId, dstW plugin.World, dstArea *plotsquared.PlotArea, dstID plotsquared.PlotId) {
+func CopyPlotBlocks(srcW plugin.World, srcArea *plots.PlotArea, srcID plots.PlotId, dstW plugin.World, dstArea *plots.PlotArea, dstID plots.PlotId) {
 	sb := srcArea.PlotInteriorBounds(srcID)
 	db := dstArea.PlotInteriorBounds(dstID)
 	minY := max(srcArea.MinBuildHeight, srcW.MinY(), dstW.MinY())
@@ -473,7 +473,7 @@ func CopyPlotBlocks(srcW plugin.World, srcArea *plotsquared.PlotArea, srcID plot
 }
 
 // SwapPlotBlocks swaps all blocks between two plots of equal size.
-func SwapPlotBlocks(w1 plugin.World, a1 *plotsquared.PlotArea, id1 plotsquared.PlotId, w2 plugin.World, a2 *plotsquared.PlotArea, id2 plotsquared.PlotId) {
+func SwapPlotBlocks(w1 plugin.World, a1 *plots.PlotArea, id1 plots.PlotId, w2 plugin.World, a2 *plots.PlotArea, id2 plots.PlotId) {
 	b1 := a1.PlotInteriorBounds(id1)
 	b2 := a2.PlotInteriorBounds(id2)
 	minY := max(a1.MinBuildHeight, w1.MinY(), w2.MinY())
@@ -497,8 +497,8 @@ func SwapPlotBlocks(w1 plugin.World, a1 *plotsquared.PlotArea, id1 plotsquared.P
 }
 
 // CreateRoadSchematic captures sideroad.schem and intersection.schem from plot's surrounding roads
-// into plugins/plotsquared/schematics/GEN_ROAD_SCHEMATIC/<world>/.
-func CreateRoadSchematic(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot, dataDir string) error {
+// into plugins/plots/schematics/GEN_ROAD_SCHEMATIC/<world>/.
+func CreateRoadSchematic(w plugin.World, area *plots.PlotArea, plot *plots.Plot, dataDir string) error {
 	if w == nil || area == nil || plot == nil || area.RoadWidth <= 0 {
 		return fmt.Errorf("cannot create road schematic for road width %d", area.RoadWidth)
 	}
@@ -525,7 +525,7 @@ func CreateRoadSchematic(w plugin.World, area *plotsquared.PlotArea, plot *plots
 }
 
 // SavePlotSchematic saves a plot's interior blocks to a Sponge v3 .schem file.
-func SavePlotSchematic(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot, path string) error {
+func SavePlotSchematic(w plugin.World, area *plots.PlotArea, plot *plots.Plot, path string) error {
 	if w == nil || area == nil || plot == nil {
 		return fmt.Errorf("invalid plot")
 	}
@@ -536,7 +536,7 @@ func SavePlotSchematic(w plugin.World, area *plotsquared.PlotArea, plot *plotsqu
 }
 
 // PastePlotSchematic pastes a WorldEdit Clipboard into plot, clipped to plot bounds.
-func PastePlotSchematic(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot, cb *westorage.Clipboard, pasteOnTop bool) int {
+func PastePlotSchematic(w plugin.World, area *plots.PlotArea, plot *plots.Plot, cb *westorage.Clipboard, pasteOnTop bool) int {
 	if w == nil || area == nil || plot == nil || cb == nil {
 		return 0
 	}
@@ -603,7 +603,7 @@ func saveBoxSchematic(w plugin.World, minP, maxP plugin.BlockPos, path string) e
 }
 
 // RegenRoadChunk regenerates only unmerged road/wall columns inside chunk (cx, cz).
-func RegenRoadChunk(w plugin.World, area *plotsquared.PlotArea, gen *HybridGenerator, cx, cz int) {
+func RegenRoadChunk(w plugin.World, area *plots.PlotArea, gen *HybridGenerator, cx, cz int) {
 	if w == nil || area == nil || area.RoadWidth <= 0 {
 		return
 	}
@@ -630,8 +630,8 @@ func RegenRoadChunk(w plugin.World, area *plotsquared.PlotArea, gen *HybridGener
 			if area.PlotAt(wx, wz) != nil {
 				continue
 			}
-			rx := plotsquared.FloorMod(wx-area.RoadOffsetX, area.Size)
-			rz := plotsquared.FloorMod(wz-area.RoadOffsetZ, area.Size)
+			rx := plots.FloorMod(wx-area.RoadOffsetX, area.Size)
+			rz := plots.FloorMod(wz-area.RoadOffsetZ, area.Size)
 			isRoad := rx < aPathLower(area) || rx > area.PathWidthUpper || rz < aPathLower(area) || rz > area.PathWidthUpper
 			isWall := !isRoad && (rx == aPathLower(area) || rx == area.PathWidthUpper || rz == aPathLower(area) || rz == area.PathWidthUpper)
 			if !isRoad && !isWall {
@@ -648,17 +648,17 @@ func RegenRoadChunk(w plugin.World, area *plotsquared.PlotArea, gen *HybridGener
 	}
 }
 
-func aPathLower(a *plotsquared.PlotArea) int {
+func aPathLower(a *plots.PlotArea) int {
 	return a.PathWidthLower
 }
 
 // SafePlotHome computes the teleport destination for a plot, honoring custom /plot sethome,
 // area.DefaultHome, area.NonmemberHome, or the road side in front of the plot.
-func SafePlotHome(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot, isMember bool) plugin.Location {
+func SafePlotHome(w plugin.World, area *plots.PlotArea, plot *plots.Plot, isMember bool) plugin.Location {
 	base := plot.BasePlot()
 	bMin, bMax := mergedOuterBounds(area, base)
 
-	var rel plotsquared.BlockLoc
+	var rel plots.BlockLoc
 	if base.Settings.Position.Set && (isMember || area.HomeAllowNonmember) {
 		rel = base.Settings.Position
 	} else if isMember && area.DefaultHome.Set {
@@ -700,7 +700,7 @@ func SafePlotHome(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.
 }
 
 // PlotCenter returns the center Location of plot.
-func PlotCenter(w plugin.World, area *plotsquared.PlotArea, plot *plotsquared.Plot) plugin.Location {
+func PlotCenter(w plugin.World, area *plots.PlotArea, plot *plots.Plot) plugin.Location {
 	bMin, bMax := mergedOuterBounds(area, plot.BasePlot())
 	tx := (bMin.X + bMax.X) / 2
 	tz := (bMin.Z + bMax.Z) / 2
@@ -722,7 +722,7 @@ func safeYAt(w plugin.World, x, z, fallback int) int {
 	return top + 1
 }
 
-func mergedOuterBounds(area *plotsquared.PlotArea, base *plotsquared.Plot) (minP, maxP plugin.BlockPos) {
+func mergedOuterBounds(area *plots.PlotArea, base *plots.Plot) (minP, maxP plugin.BlockPos) {
 	first := true
 	for _, r := range area.PlotRegions(base) {
 		if first {

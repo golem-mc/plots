@@ -1,4 +1,4 @@
-package plotsquaredplugin
+package plotsplugin
 
 import (
 	"math"
@@ -6,16 +6,16 @@ import (
 
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/registry"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/event"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/event"
 )
 
-func (ps *PlotSquared) registerEntityListeners() {
+func (ps *Plugin) registerEntityListeners() {
 	ps.registerEntityCombatAndSpawnListeners()
 	ps.registerEntityWorldListeners()
 }
 
-func (ps *PlotSquared) registerEntityCombatAndSpawnListeners() {
+func (ps *Plugin) registerEntityCombatAndSpawnListeners() {
 	s := ps.Server
 	opts := plugin.ListenOptions{Priority: plugin.High, IgnoreCancelled: true}
 
@@ -209,7 +209,7 @@ func (ps *PlotSquared) registerEntityCombatAndSpawnListeners() {
 	}, opts)
 }
 
-func (ps *PlotSquared) registerEntityWorldListeners() {
+func (ps *Plugin) registerEntityWorldListeners() {
 	s := ps.Server
 	opts := plugin.ListenOptions{Priority: plugin.High, IgnoreCancelled: true}
 
@@ -431,7 +431,7 @@ func (ps *PlotSquared) registerEntityWorldListeners() {
 	})
 }
 
-func (ps *PlotSquared) allowEntityDamageByPlayer(attacker plugin.Player, victim plugin.Entity) bool {
+func (ps *Plugin) allowEntityDamageByPlayer(attacker plugin.Player, victim plugin.Entity) bool {
 	if attacker == nil || victim == nil {
 		return true
 	}
@@ -518,7 +518,7 @@ func isExplosiveEntity(t registry.EntityType) bool {
 		t == registry.EntityTypeWitherSkull
 }
 
-func (ps *PlotSquared) exceedsEntityCap(w plugin.World, area *plotsquared.PlotArea, base *plotsquared.Plot, spawning plugin.Entity) bool {
+func (ps *Plugin) exceedsEntityCap(w plugin.World, area *plots.PlotArea, base *plots.Plot, spawning plugin.Entity) bool {
 	entCap := base.FlagInt("entity-cap")
 	mobCap := base.FlagInt("mob-cap")
 	animalCap := base.FlagInt("animal-cap")
@@ -562,7 +562,7 @@ type PlotEntityCounts struct {
 }
 
 // CountPlotEntities counts all non-player entities currently inside base plot.
-func (ps *PlotSquared) CountPlotEntities(w plugin.World, area *plotsquared.PlotArea, base *plotsquared.Plot) PlotEntityCounts {
+func (ps *Plugin) CountPlotEntities(w plugin.World, area *plots.PlotArea, base *plots.Plot) PlotEntityCounts {
 	var c PlotEntityCounts
 	if w == nil || area == nil || base == nil {
 		return c

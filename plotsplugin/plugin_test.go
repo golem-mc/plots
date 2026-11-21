@@ -1,4 +1,4 @@
-package plotsquaredplugin_test
+package plotsplugin_test
 
 import (
 	"os"
@@ -8,10 +8,10 @@ import (
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/plugintest"
 	"github.com/golem-mc/golem/registry"
-	"github.com/golem-mc/plotsquared"
-	"github.com/golem-mc/plotsquared/event"
-	"github.com/golem-mc/plotsquared/internal/generator"
-	"github.com/golem-mc/plotsquared/plotsquaredplugin"
+	"github.com/golem-mc/plots"
+	"github.com/golem-mc/plots/event"
+	"github.com/golem-mc/plots/internal/generator"
+	"github.com/golem-mc/plots/plotsplugin"
 	"github.com/golem-mc/worldedit"
 	"github.com/golem-mc/worldedit/region"
 	westorage "github.com/golem-mc/worldedit/storage"
@@ -23,17 +23,17 @@ func TestGeneratorLifecycleAndPlotOps(t *testing.T) {
 	host := srv.Host()
 
 	// Verify API service is provided
-	api, ok := plotsquared.Lookup(host)
+	api, ok := plots.Lookup(host)
 	if !ok {
-		t.Fatal("expected plotsquared.API service to be registered")
+		t.Fatal("expected plots.API service to be registered")
 	}
-	ps, ok := plotsquaredplugin.Get()
+	ps, ok := plotsplugin.Get()
 	if !ok {
 		t.Fatal("expected PlotSquared plugin instance")
 	}
 
 	// Verify GeneratorProvider resolution via Server.Generator
-	gen, err := host.Generator(plugin.MinecraftKey("gen_spec_world"), "PlotSquared:s=10,g=5,h=62,f=stone")
+	gen, err := host.Generator(plugin.MinecraftKey("gen_spec_world"), "plots:s=10,g=5,h=62,f=stone")
 	if err != nil {
 		t.Fatalf("Server.Generator: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestGeneratorLifecycleAndPlotOps(t *testing.T) {
 	}
 
 	// Create a compact plot world (plot=10, road=5, height=62) so chunk gen & ops stay ultra-fast.
-	area := plotsquared.DefaultPlotArea("plotworld", "")
+	area := plots.DefaultPlotArea("plotworld", "")
 	area.PlotWidth = 10
 	area.RoadWidth = 5
 	area.PlotHeight = 62
@@ -72,7 +72,7 @@ func TestGeneratorLifecycleAndPlotOps(t *testing.T) {
 	}
 
 	// Check generated blocks in plot (1;1): road, wall, plot floor, filling, bedrock, biome
-	b11 := area.PlotInteriorBounds(plotsquared.PlotId{X: 1, Y: 1})
+	b11 := area.PlotInteriorBounds(plots.PlotId{X: 1, Y: 1})
 	if st := w.BlockState(plugin.BlockPos{X: b11.Min.X, Y: 0, Z: b11.Min.Z}); st.Block() != registry.BlockBedrock {
 		t.Errorf("y=0 block = %v, want bedrock", st.Block())
 	}
@@ -101,7 +101,7 @@ func TestGeneratorLifecycleAndPlotOps(t *testing.T) {
 	bob := srv.Join("Bob")
 
 	// Claim (1;1) and (2;1) for Alice
-	p1, err := ps.ClaimPlot(area, plotsquared.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
+	p1, err := ps.ClaimPlot(area, plots.PlotId{X: 1, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
 	if err != nil {
 		t.Fatalf("ClaimPlot (1;1): %v", err)
 	}
@@ -132,11 +132,11 @@ func TestGeneratorLifecycleAndPlotOps(t *testing.T) {
 	}
 
 	// Claim (2;1) and merge east!
-	_, err = ps.ClaimPlot(area, plotsquared.PlotId{X: 2, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
+	_, err = ps.ClaimPlot(area, plots.PlotId{X: 2, Y: 1}, alice.Handle().UUID(), alice.Handle(), false)
 	if err != nil {
 		t.Fatalf("ClaimPlot (2;1): %v", err)
 	}
-	merged, err := ps.MergePlot(p1, plotsquared.DirEast, 4, alice.Handle(), true)
+	merged, err := ps.MergePlot(p1, plots.DirEast, 4, alice.Handle(), true)
 	if err != nil || merged == 0 {
 		t.Fatalf("MergePlot east: merged=%d err=%v", merged, err)
 	}
@@ -150,7 +150,7 @@ func TestGeneratorLifecycleAndPlotOps(t *testing.T) {
 	}
 
 	// SetComponent floor -> gold_block
-	if err := ps.SetComponent(p1, plotsquared.ComponentFloor, "gold_block"); err != nil {
+	if err := ps.SetComponent(p1, plots.ComponentFloor, "gold_block"); err != nil {
 		t.Fatalf("SetComponent floor: %v", err)
 	}
 	if st := w.BlockState(plugin.BlockPos{X: b11.Min.X, Y: 62, Z: b11.Min.Z}); st.Block() != registry.BlockGoldBlock {
@@ -188,7 +188,7 @@ func TestGeneratorLifecycleAndPlotOps(t *testing.T) {
 func TestRoadSchematicGeneration(t *testing.T) {
 	t.Chdir(t.TempDir())
 	srv := plugintest.Start(t)
-	ps, ok := plotsquaredplugin.Get()
+	ps, ok := plotsplugin.Get()
 	if !ok {
 		t.Fatal("expected PlotSquared plugin instance")
 	}
@@ -216,7 +216,7 @@ func TestRoadSchematicGeneration(t *testing.T) {
 	makeSchem(5, 1, 10, registry.BlockGoldBlock, "sideroad.schem")
 	makeSchem(5, 1, 5, registry.BlockDiamondBlock, "intersection.schem")
 
-	area := plotsquared.DefaultPlotArea("schemworld", "")
+	area := plots.DefaultPlotArea("schemworld", "")
 	area.PlotWidth = 10
 	area.RoadWidth = 5
 	area.PlotHeight = 62
@@ -251,8 +251,30 @@ func TestRoadSchematicGeneration(t *testing.T) {
 		t.Errorf("sideroad (0,62,5) = %v, want gold_block", st.Block())
 	}
 	// Verify CreateRoadSchematic captures valid files
-	p := plotsquared.NewPlot(area, plotsquared.PlotId{X: 1, Y: 1}, plotsquared.EveryoneUUID)
+	p := plots.NewPlot(area, plots.PlotId{X: 1, Y: 1}, plots.EveryoneUUID)
 	if err := generator.CreateRoadSchematic(w, area, p, t.TempDir()); err != nil {
 		t.Fatalf("CreateRoadSchematic: %v", err)
+	}
+}
+
+func TestLegacyDataDirHint(t *testing.T) {
+	pluginsDir := filepath.Join(t.TempDir(), "plugins")
+	// Neither directory exists -> no hint.
+	if plotsplugin.CheckLegacyDataDir(pluginsDir, nil) {
+		t.Fatal("expected false when plugins/PlotSquared does not exist")
+	}
+	// Create plugins/PlotSquared without plugins/plots -> hint fires.
+	if err := os.MkdirAll(filepath.Join(pluginsDir, "PlotSquared"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !plotsplugin.CheckLegacyDataDir(pluginsDir, nil) {
+		t.Fatal("expected true when plugins/PlotSquared exists without plugins/plots")
+	}
+	// Once plugins/plots exists -> no hint.
+	if err := os.MkdirAll(filepath.Join(pluginsDir, "plots"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if plotsplugin.CheckLegacyDataDir(pluginsDir, nil) {
+		t.Fatal("expected false when plugins/plots already exists")
 	}
 }
