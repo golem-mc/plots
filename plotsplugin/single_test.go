@@ -94,3 +94,91 @@ func TestDebugImportWorlds(t *testing.T) {
 		t.Fatal("expected imported plot 3;-2")
 	}
 }
+
+func TestSinglePlotWorldLifecycle(t *testing.T) {
+	t.Chdir(t.TempDir())
+	srv := plugintest.Start(t, plugintest.Ops("Alice"))
+	host := srv.Host()
+	ps, _ := plotsplugin.Get()
+	tmpl := plots.DefaultPlotArea(plots.SingleAreaName, "")
+	tmpl.MinGenHeight, tmpl.MaxGenHeight = 0, 70
+	tmpl.MinBuildHeight, tmpl.MaxBuildHeight = 1, 70
+	ps.CreateSingleArea(tmpl)
+
+	alice := srv.Join("Alice")
+	grantPerms(alice.Handle(), "plots.permpack.basic", "plots.plot.10", "plots.auto", "plots.clear", "plots.delete", "plots.home")
+	mustDispatch(t, host, alice.Handle(), "plot auto")
+	owned := ps.PlotsByOwner(alice.Handle().UUID())
+	if len(owned) != 1 {
+		t.Fatalf("expected one plot, got %d", len(owned))
+	}
+	id := owned[0].ID
+	name := plots.SingleWorldName(id)
+	inWorld := func() bool {
+		l := alice.Handle().Location()
+		return l.World != nil && ps.WorldName(l.World) == name
+	}
+	if !inWorld() {
+		t.Fatal("Alice should be inside her plot world")
+	}
+
+	// Clear inside the world: the world is unloaded and Alice is moved out, not stranded.
+	mustDispatch(t, host, alice.Handle(), "plot clear")
+	srv.RunTicks(2)
+	if _, ok := ps.WrapWorld(name); ok {
+		t.Error("plot world should be unloaded after /plot clear")
+	}
+	if l := alice.Handle().Location(); l.World == nil || ps.WorldName(l.World) == name {
+		t.Fatalf("Alice must be moved out of the unloaded world, at %v", l.World)
+	}
+	if len(ps.PlotsByOwner(alice.Handle().UUID())) != 1 {
+		t.Error("/plot clear must keep the plot")
+	}
+
+	// /plot home reloads the unloaded world.
+	mustDispatch(t, host, alice.Handle(), "plot home")
+	srv.RunTicks(2)
+	if _, ok := ps.WrapWorld(name); !ok || !inWorld() {
+		t.Fatal("/plot home should reload the world and bring Alice in")
+	}
+
+	// Delete inside the world regenerates nothing stale: plot gone, world gone, Alice moved out.
+	mustDispatch(t, host, alice.Handle(), "plot delete")
+	srv.RunTicks(2)
+	if len(ps.PlotsByOwner(alice.Handle().UUID())) != 0 {
+		t.Error("/plot delete should remove the plot")
+	}
+	if _, ok := ps.WrapWorld(name); ok {
+		t.Error("plot world should be gone after /plot delete")
+	}
+	if l := alice.Handle().Location(); l.World == nil || ps.WorldName(l.World) == name {
+		t.Fatal("Alice must be moved out on delete")
+	}
+}
+
+func TestSinglePlotWorldUnloadsWhenLastPlayerLeaves(t *testing.T) {
+	t.Chdir(t.TempDir())
+	srv := plugintest.Start(t, plugintest.Ops("Alice"))
+	host := srv.Host()
+	ps, _ := plotsplugin.Get()
+	ps.CreateSingleArea(nil)
+
+	alice := srv.Join("Alice")
+	grantPerms(alice.Handle(), "plots.permpack.basic", "plots.plot.10", "plots.auto")
+	mustDispatch(t, host, alice.Handle(), "plot auto")
+	owned := ps.PlotsByOwner(alice.Handle().UUID())
+	if len(owned) != 1 {
+		t.Fatalf("expected one plot, got %d", len(owned))
+	}
+	name := plots.SingleWorldName(owned[0].ID)
+	if _, ok := ps.WrapWorld(name); !ok {
+		t.Fatal("plot world should be loaded while Alice is in it")
+	}
+
+	main, _ := host.World(plugin.MinecraftKey("overworld"))
+	alice.Handle().Teleport(plugin.Location{World: main, Pos: plugin.Vec3{X: 0.5, Y: 80, Z: 0.5}}, plugin.TeleportPlugin)
+	srv.RunTicks(3)
+	if _, ok := ps.WrapWorld(name); ok {
+		t.Error("empty single plot world should be unloaded")
+	}
+}

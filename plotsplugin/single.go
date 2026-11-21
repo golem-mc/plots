@@ -11,7 +11,6 @@ import (
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/plots"
 	"github.com/golem-mc/plots/internal/config"
-	"github.com/golem-mc/plots/internal/lang"
 )
 
 // singleWorldNamespace and singleWorldPrefix form the dimension key of a single
@@ -30,16 +29,7 @@ func singleIDFromKey(key plugin.Key) (plots.PlotId, bool) {
 	if key.Namespace != singleWorldNamespace || !strings.HasPrefix(key.Path, singleWorldPrefix) {
 		return plots.PlotId{}, false
 	}
-	xs, ys, ok := strings.Cut(strings.TrimPrefix(key.Path, singleWorldPrefix), "_")
-	if !ok {
-		return plots.PlotId{}, false
-	}
-	x, err1 := strconv.Atoi(xs)
-	y, err2 := strconv.Atoi(ys)
-	if err1 != nil || err2 != nil {
-		return plots.PlotId{}, false
-	}
-	return plots.PlotId{X: x, Y: y}, true
+	return plots.ParsePlotId(strings.TrimPrefix(key.Path, singleWorldPrefix))
 }
 
 // singleTemplate returns the "*" single plot area from worlds.yml, or nil.
@@ -216,12 +206,16 @@ func (ps *Plugin) ImportWorlds() ([]plots.PlotId, error) {
 }
 
 func (ps *Plugin) cmdDebugImportWorlds(c *cmdCtx) {
+	if ps.singleTemplate() == nil {
+		ps.sendCaption(c.sender, "debugimportworlds.single_plot_area")
+		return
+	}
 	ids, err := ps.ImportWorlds()
 	if err != nil {
 		ps.sendCaption(c.sender, "errors.error", "value", err.Error())
 		return
 	}
-	c.sender.SendMessage(lang.ParseMiniMessage(fmt.Sprintf("<gold>[Plots]</gold> <gray>Imported %d single plot world(s).</gray>", len(ids))))
+	ps.sendCaption(c.sender, "debugimportworlds.imported", "value", strconv.Itoa(len(ids)))
 }
 
 // CreateSingleArea registers area (or the defaults) as the single plot area "*"

@@ -3,7 +3,6 @@ package plots
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -202,24 +201,12 @@ const SingleAreaName = "*"
 // the world border limit upstream's SinglePlotManager uses.
 const singleExtent = 29999984
 
-// IsSingleWorldName reports whether name is a single plot world name, "x,y" or "x;y".
-func IsSingleWorldName(name string) bool {
-	_, ok := ParseSingleWorldName(name)
-	return ok
-}
-
 // ParseSingleWorldName parses the world name "x,y" (or "x;y") of a single plot.
 func ParseSingleWorldName(name string) (PlotId, bool) {
-	sep := strings.IndexAny(name, ",;")
-	if sep <= 0 {
+	if !strings.ContainsAny(name, ",;") {
 		return PlotId{}, false
 	}
-	x, err1 := strconv.Atoi(name[:sep])
-	y, err2 := strconv.Atoi(name[sep+1:])
-	if err1 != nil || err2 != nil {
-		return PlotId{}, false
-	}
-	return PlotId{X: x, Y: y}, true
+	return ParsePlotId(name)
 }
 
 // SingleWorldName is the world name of the dimension holding single plot id.
