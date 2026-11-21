@@ -403,6 +403,9 @@ func (ps *Plugin) cmdDelete(c *cmdCtx) {
 				ps.kickFromPlot(pl, plot)
 			}
 		}
+		if ps.Backups != nil && ps.Settings != nil && ps.Settings.Backup.DeleteOnUnclaim {
+			_ = ps.Backups.DeleteAll(plot)
+		}
 		if err := ps.DeletePlot(plot, true); err != nil {
 			ps.sendCaption(c.sender, "errors.error", "value", err.Error())
 			return
@@ -441,6 +444,11 @@ func (ps *Plugin) cmdClear(c *cmdCtx) {
 		if ps.Settings != nil && ps.Settings.Teleport.OnClear {
 			for _, pl := range ps.playersInPlot(plot) {
 				ps.teleportToPlot(pl, plot, "clear")
+			}
+		}
+		if ps.Backups != nil && ps.Settings != nil && ps.Settings.Backup.AutomaticBackups && !plot.IsMerged() {
+			if w, ok := ps.WrapWorld(plot.Area.WorldName); ok {
+				_, _ = ps.Backups.Save(w, plot.Area, plot)
 			}
 		}
 		if err := ps.ClearPlot(plot); err != nil {

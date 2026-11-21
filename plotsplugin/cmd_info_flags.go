@@ -491,6 +491,14 @@ func (ps *Plugin) cmdList(c *cmdCtx) {
 				}
 			}
 		}
+	case "expired":
+		if !HasPerm(c.sender, "plots.list.expired") {
+			ps.sendNoPerm(c.sender, "plots.list.expired")
+			return
+		}
+		if ps.Expiry != nil && ps.Settings != nil {
+			matched = ps.Expiry.ExpiredPlots(ps.PlotAreas(), ps.Settings.AutoClear, ps.now())
+		}
 	case "unowned":
 		if !HasPerm(c.sender, "plots.list.unowned") {
 			ps.sendNoPerm(c.sender, "plots.list.unowned")

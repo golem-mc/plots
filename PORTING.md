@@ -14,6 +14,8 @@ to [golem](https://github.com/golem-mc/golem) under the plugin name `plots`.
 | `internal/config/` | `config/settings.yml`, `config/storage.yml`, `config/worlds.yml` and bundled `.template` archives | `Settings`, `Storage`, `PlotArea` YAML serialization |
 | `internal/storage/` | Pure-Go SQLite (`modernc.org/sqlite`) storage using upstream's exact 13-table schema | `database/SQLManager`, `database/SQLite` |
 | `internal/generator/` | `HybridGenerator` (`plugin.Generator`), road/plot schematic overlays, plot terrain ops (clear, components, merge/unlink roads, copy/swap, road schematics) | `generator/HybridGen`, `HybridPlotWorld`, `ClassicPlotManager`, `HybridPlotManager` |
+| `internal/backup/` | Per-plot schematic backups with automatic backup hooks and backup-limit pruning | `backup/SimpleBackupManager`, `PlayerBackupProfile` |
+| `internal/expiry/` | Plot complexity analysis and automatic plot expiry evaluation | `plot/expiration/ExpireManager`, `PlotAnalysis` |
 | `plotsplugin/` | The `plots` plugin: lifecycle, `GeneratorProvider`, permissions, plot manager, WorldEdit region restrictions, protection/movement/entity listeners, Vault economy, `/plot` commands & tab completion | `BukkitPlatform`, `PlotSquared`, `WESubscriber`, `listener/*`, `PlotListener`, `command/*` |
 
 ## Decisions
