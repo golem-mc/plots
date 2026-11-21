@@ -49,6 +49,15 @@ to [golem](https://github.com/golem-mc/golem) under the plugin name `plots`.
   parser renders colors, `#rrggbb`, decorations, `<click:...>` and `<hover:show_text:...>`
   directly to `plugin.Text`.
 
+- **Single plot area**: `AreaSingle` (`generator.type: SINGLE`, world name `*`) replaces
+  upstream's `SinglePlotArea`. Plot worlds are golem dimensions `plots:single/<x>_<y>`
+  (Bukkit name `x,y`), each with its own `PlotArea` instance (`SingleID` set) built from the
+  `*` template and stored under `plot.world = "*"`. `SingleWorldListener` becomes
+  `onSingleLeave`, which unloads a plot world when its last player leaves. Clear/delete wipe the
+  world folder; operations that iterate plot bounds (schematics, copy) are not meaningful there.
+  `/plot debugimportworlds` registers dimension folders found under `dimensions/plots/single/`
+  as server-owned plots.
+
 ## Self-Audit
 
 ### Core Subsystems

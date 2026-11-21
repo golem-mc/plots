@@ -603,6 +603,11 @@ func (ps *Plugin) teleportToPlot(p plugin.Player, plot *plots.Plot, cause string
 		return false
 	}
 	w, ok := ps.WrapWorld(plot.Area.WorldName)
+	if !ok && plot.Area.Type == plots.AreaSingle {
+		var err error
+		w, err = ps.ensureSingleWorld(plot.Area)
+		ok = err == nil
+	}
 	if !ok {
 		return false
 	}

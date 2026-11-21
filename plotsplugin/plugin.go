@@ -191,6 +191,9 @@ func (ps *Plugin) Enable(s plugin.Server) error {
 	// Load configured plot areas and ensure custom plot worlds are loaded
 	ps.initConfiguredWorlds()
 
+	ps.registerSingleOwned()
+	ps.registerSingleListeners()
+
 	// Listen for world load/unload and augmented/partial chunk generation
 	plugin.Listen(s, func(e *plugin.WorldLoadEvent) {
 		ps.onWorldLoad(e.World)
@@ -344,6 +347,15 @@ func (ps *Plugin) registerAreasFromWorldConfig(worldName string, wc *config.Worl
 
 func (ps *Plugin) attachLoadedData(a *plots.PlotArea) {
 	fullID := a.FullID()
+	if a.Type == plots.AreaSingle {
+		// Only the instance of one plot holds that plot's data; the "*" template none.
+		if a.SingleID != nil {
+			if p, ok := ps.plotsTmp[fullID][*a.SingleID]; ok {
+				a.SetPlot(p)
+			}
+		}
+		return
+	}
 	if ps.plotsTmp != nil {
 		if m, ok := ps.plotsTmp[fullID]; ok {
 			for _, p := range m {
@@ -387,6 +399,9 @@ func (ps *Plugin) ensureWorldArea(worldName, _ string) *plots.PlotArea {
 
 func (ps *Plugin) generatorForArea(area *plots.PlotArea) *generator.HybridGenerator {
 	key := strings.ToLower(area.FullID())
+	if area.Type == plots.AreaSingle && area.SingleID != nil {
+		key = strings.ToLower(area.WorldName)
+	}
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	if g, ok := ps.gens[key]; ok {
@@ -446,6 +461,9 @@ func (ps *Plugin) LevelName() string {
 
 // WorldNameForKey maps a golem dimension key to Bukkit's world name convention.
 func (ps *Plugin) WorldNameForKey(key plugin.Key) string {
+	if id, ok := singleIDFromKey(key); ok {
+		return plots.SingleWorldName(id)
+	}
 	if key.Namespace != "minecraft" && key.Namespace != "" {
 		return key.Namespace + "_" + key.Path
 	}
@@ -463,6 +481,9 @@ func (ps *Plugin) WorldNameForKey(key plugin.Key) string {
 
 // WorldKeyForName maps a Bukkit-style world name to a golem dimension key.
 func (ps *Plugin) WorldKeyForName(name string) plugin.Key {
+	if id, ok := plots.ParseSingleWorldName(name); ok {
+		return singleKey(id)
+	}
 	lvl := ps.LevelName()
 	switch {
 	case strings.EqualFold(name, lvl):

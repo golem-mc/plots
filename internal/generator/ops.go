@@ -699,6 +699,9 @@ func SafePlotHome(w plugin.World, area *plots.PlotArea, plot *plots.Plot, isMemb
 		if ty <= w.MinY() {
 			ty = safeYAt(w, tx, tz, area.PlotHeight+1)
 		}
+	case area.Type == plots.AreaSingle:
+		// The plot is the whole dimension: stand at its origin.
+		ty = safeYAt(w, 0, 0, area.PlotHeight+1)
 	default:
 		// Default side of plot on the northern road looking south into the plot
 		tx = bMin.X + area.PlotWidth/2

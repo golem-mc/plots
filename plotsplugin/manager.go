@@ -19,6 +19,17 @@ func (ps *Plugin) ClaimPlot(area *plots.PlotArea, id plots.PlotId, owner uuid.UU
 	if area == nil {
 		return nil, fmt.Errorf("not in a plot area")
 	}
+	if area.Type == plots.AreaSingle {
+		if area.SingleID == nil {
+			area = ps.singleInstance(id)
+			if area == nil {
+				return nil, fmt.Errorf("no single plot area")
+			}
+		}
+		if _, err := ps.ensureSingleWorld(area); err != nil {
+			return nil, fmt.Errorf("create plot world: %w", err)
+		}
+	}
 	if !area.ContainsPlotId(id) {
 		return nil, fmt.Errorf("plot %s is outside area bounds", id)
 	}
@@ -57,6 +68,10 @@ func (ps *Plugin) ClaimPlot(area *plots.PlotArea, id plots.PlotId, owner uuid.UU
 func (ps *Plugin) AutoClaim(area *plots.PlotArea, owner uuid.UUID, actor plugin.Player, sizeX, sizeZ int) (*plots.Plot, error) {
 	if area == nil {
 		return nil, fmt.Errorf("not in a plot area")
+	}
+	if area.Type == plots.AreaSingle {
+		// Every single plot is its own world, so there is nothing to merge.
+		return ps.ClaimPlot(area, ps.nextFreeSinglePlot(), owner, actor, true)
 	}
 	if sizeX <= 1 && sizeZ <= 1 {
 		id, ok := area.NextFreePlotId()
@@ -97,6 +112,9 @@ func (ps *Plugin) ClearPlot(plot *plots.Plot) error {
 	if ev.Cancelled() {
 		return fmt.Errorf("clear cancelled")
 	}
+	if base.Area.Type == plots.AreaSingle {
+		return ps.resetSingleWorld(base.Area)
+	}
 	if w, ok := ps.WrapWorld(base.Area.WorldName); ok {
 		gen := ps.generatorForArea(base.Area)
 		generator.ClearPlot(w, base.Area, base, gen)
@@ -122,6 +140,12 @@ func (ps *Plugin) DeletePlot(plot *plots.Plot, clearBlocks bool) error {
 	}
 	connected := base.ConnectedPlots()
 	area := base.Area
+	if area.Type == plots.AreaSingle && clearBlocks {
+		if err := ps.resetSingleWorld(area); err != nil {
+			return err
+		}
+		clearBlocks = false
+	}
 	w, hasWorld := ps.WrapWorld(area.WorldName)
 	gen := ps.generatorForArea(area)
 
