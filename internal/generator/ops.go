@@ -26,6 +26,7 @@ func ClearPlot(w plugin.World, area *plots.PlotArea, plot *plots.Plot, gen *Hybr
 	biome, _ := ResolveBiome(area.PlotBiome)
 
 	minY := max(area.MinGenHeight, w.MinY())
+	minBuildY := max(area.MinBuildHeight, w.MinY())
 	maxY := min(area.MaxGenHeight, w.MinY()+w.Height()-1)
 	maxBuildY := min(area.MaxBuildHeight-1, w.MinY()+w.Height()-1)
 	startY := minY
@@ -47,6 +48,12 @@ func ClearPlot(w plugin.World, area *plots.PlotArea, plot *plots.Plot, gen *Hybr
 
 		for x := reg.Min.X; x <= reg.Max.X; x++ {
 			for z := reg.Min.Z; z <= reg.Max.Z; z++ {
+				for y := minBuildY; y < minY; y++ {
+					p := plugin.BlockPos{X: x, Y: y, Z: z}
+					if w.BlockState(p) != air {
+						w.SetBlockState(p, air, plugin.UpdateClients)
+					}
+				}
 				if area.PlotBedrock {
 					w.SetBlockState(plugin.BlockPos{X: x, Y: minY, Z: z}, bedrock, plugin.UpdateClients)
 				}
@@ -149,7 +156,13 @@ func setWalls(w plugin.World, area *plots.PlotArea, base *plots.Plot, yMin, yMax
 			zMin--
 		}
 		xMax := b.Max.X + 1
+		if cp.IsMergedDir(plots.DirEast) {
+			xMax = b.Max.X + area.RoadWidth
+		}
 		zMax := b.Max.Z + 1
+		if cp.IsMergedDir(plots.DirSouth) {
+			zMax = b.Max.Z + area.RoadWidth
+		}
 
 		if !cp.IsMergedDir(plots.DirNorth) {
 			for x := xMin; x <= xMax; x++ {
@@ -507,6 +520,9 @@ func CreateRoadSchematic(w plugin.World, area *plots.PlotArea, plot *plots.Plot,
 	maxY := min(area.MaxGenHeight, w.MinY()+w.Height()-1)
 
 	outDir := filepath.Join(dataDir, "schematics", "GEN_ROAD_SCHEMATIC", area.WorldName)
+	if area.ID != "" {
+		outDir = filepath.Join(outDir, area.ID)
+	}
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err
 	}
