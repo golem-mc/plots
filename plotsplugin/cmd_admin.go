@@ -745,10 +745,33 @@ func (ps *Plugin) startExpiryTask() {
 	if !ps.Settings.EnabledComponents.PlotExpiry {
 		return
 	}
-	// Check every 5 minutes (6000 ticks)
-	ps.Server.Scheduler().RunTimer(6000, 6000, func() {
+	ps.startExpiryTimer()
+}
+
+// startExpiryTimer schedules the periodic expiry pass (every 5 minutes) and
+// reports false when it is already running.
+func (ps *Plugin) startExpiryTimer() bool {
+	ps.dbgMu.Lock()
+	defer ps.dbgMu.Unlock()
+	if ps.expiryTask != nil && !ps.expiryTask.Cancelled() {
+		return false
+	}
+	ps.expiryTask = ps.Server.Scheduler().RunTimer(6000, 6000, func() {
 		ps.RunExpiryPass()
 	})
+	return true
+}
+
+// stopExpiryTimer cancels the periodic expiry pass and reports whether one was running.
+func (ps *Plugin) stopExpiryTimer() bool {
+	ps.dbgMu.Lock()
+	defer ps.dbgMu.Unlock()
+	if ps.expiryTask == nil || ps.expiryTask.Cancelled() {
+		return false
+	}
+	ps.expiryTask.Cancel()
+	ps.expiryTask = nil
+	return true
 }
 
 // RunExpiryPass clears plots that are expired under settings.yml auto_clear tasks.
