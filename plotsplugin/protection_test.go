@@ -346,14 +346,14 @@ func TestChunkUnloadPrunesEntities(t *testing.T) {
 	inPlot := plugin.Location{World: w, Pos: plugin.Vec3{X: float64(p1.Min.X) + 2.5, Y: 63, Z: float64(p1.Min.Z) + 2.5}}
 	road := plugin.Location{World: w, Pos: plugin.Vec3{X: float64(p1.Min.X) - 2.5, Y: 63, Z: float64(p1.Min.Z) + 2.5}}
 	var inside, onRoad []plugin.Entity
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		e, err := w.Spawn(registry.EntityTypeCow, inPlot, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		inside = append(inside, e)
 	}
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		e, err := w.Spawn(registry.EntityTypeCow, road, nil)
 		if err != nil {
 			t.Fatal(err)
