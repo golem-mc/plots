@@ -124,6 +124,7 @@ func DefaultPlotArea(worldName, id string) *PlotArea {
 		SignMaterial:          "oak_wall_sign",
 		SpawnCustom:           true,
 		PlotChat:              true,
+		HomeAllowNonmember:    true,
 		BorderSize:            1,
 		PriceClaim:            "100",
 		PriceMerge:            "100",
