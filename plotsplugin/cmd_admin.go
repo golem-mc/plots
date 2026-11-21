@@ -132,6 +132,15 @@ func (ps *Plugin) registerAdminCommands() {
 	})
 
 	ps.addSubCommand(&subCommand{
+		name:     "debugimportworlds",
+		perm:     "plots.admin",
+		usage:    "/plot debugimportworlds",
+		desc:     "Import existing single plot worlds as plots",
+		category: catDebug,
+		run:      ps.cmdDebugImportWorlds,
+	})
+
+	ps.addSubCommand(&subCommand{
 		name:     "database",
 		aliases:  []string{"convert"},
 		perm:     "plots.database",

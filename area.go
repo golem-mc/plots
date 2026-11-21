@@ -1,6 +1,7 @@
 package plots
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -23,6 +24,9 @@ type PlotArea struct {
 	// Min and Max bound the allowed PlotIds for PARTIAL areas (nil if unbounded).
 	Min *PlotId
 	Max *PlotId
+	// SingleID is set on the per-plot instance of an AreaSingle area: the one plot
+	// that fills the whole dimension WorldName. It is nil on the "*" template area.
+	SingleID *PlotId
 
 	// Grid geometry (SquarePlotWorld / ClassicPlotWorld / HybridPlotWorld)
 	PlotWidth             int
@@ -158,6 +162,9 @@ func (a *PlotArea) ComputeGeometry() {
 // FullID returns WorldName for whole-world areas or "WorldName;ID" for partial areas.
 // Matches upstream PlotArea.toString(), used in SQLite's `plot.world` column.
 func (a *PlotArea) FullID() string {
+	if a.Type == AreaSingle {
+		return SingleAreaName
+	}
 	if a.ID == "" {
 		return a.WorldName
 	}
@@ -186,6 +193,24 @@ func (a *PlotArea) ContainsPlotId(id PlotId) bool {
 	}
 	return true
 }
+
+// SingleAreaName is the world name and plot.world column of PlotSquared's single plot area.
+const SingleAreaName = "*"
+
+// singleExtent is how far (in blocks) a single plot reaches from the origin,
+// the world border limit upstream's SinglePlotManager uses.
+const singleExtent = 29999984
+
+// ParseSingleWorldName parses the world name "x,y" (or "x;y") of a single plot.
+func ParseSingleWorldName(name string) (PlotId, bool) {
+	if !strings.ContainsAny(name, ",;") {
+		return PlotId{}, false
+	}
+	return ParsePlotId(name)
+}
+
+// SingleWorldName is the world name of the dimension holding single plot id.
+func SingleWorldName(id PlotId) string { return fmt.Sprintf("%d,%d", id.X, id.Y) }
 
 // FloorDiv performs Euclidean floor division (matching Java Math.floorDiv).
 func FloorDiv(a, b int) int {
@@ -217,6 +242,12 @@ func FloorMod(a, b int) int {
 //	Wait: PlotBottomLocAbs returns the block *outside* (at the wall) in upstream, and Plot.getBottomAbs() adds (1,0,1)!
 //	Let's provide both interior bottom/top (exact buildable plot corners) and wall bounds!
 func (a *PlotArea) PlotInteriorBounds(id PlotId) RegionBounds {
+	if a.Type == AreaSingle {
+		return RegionBounds{
+			Min: plugin.BlockPos{X: -singleExtent, Y: a.MinBuildHeight, Z: -singleExtent},
+			Max: plugin.BlockPos{X: singleExtent, Y: a.MaxBuildHeight, Z: singleExtent},
+		}
+	}
 	if a.Size <= 0 {
 		return RegionBounds{}
 	}
@@ -252,6 +283,12 @@ func (a *PlotArea) PlotInteriorBounds(id PlotId) RegionBounds {
 // PlotIdAt returns the PlotId if (x, z) is strictly inside a plot's buildable interior,
 // or (PlotId{}, false) if (x, z) is on a wall or road (or outside partial area bounds).
 func (a *PlotArea) PlotIdAt(x, z int) (PlotId, bool) {
+	if a.Type == AreaSingle {
+		if a.SingleID == nil {
+			return PlotId{}, false
+		}
+		return *a.SingleID, true
+	}
 	if a.Size <= 0 {
 		return PlotId{}, false
 	}
@@ -277,6 +314,9 @@ func (a *PlotArea) PlotIdAt(x, z int) (PlotId, bool) {
 
 // PlotIdNearest returns the PlotId of the grid cell containing (x, z), even on roads/walls.
 func (a *PlotArea) PlotIdNearest(x, z int) PlotId {
+	if a.Type == AreaSingle && a.SingleID != nil {
+		return *a.SingleID
+	}
 	if a.Size <= 0 {
 		return PlotId{X: 1, Y: 1}
 	}
@@ -291,6 +331,9 @@ func (a *PlotArea) PlotIdNearest(x, z int) PlotId {
 // ContainsXZ reports whether block coordinate (x, z) lies inside this area
 // (always true for whole-world areas; bounded for partial areas).
 func (a *PlotArea) ContainsXZ(x, z int) bool {
+	if a.Type == AreaSingle {
+		return a.SingleID != nil
+	}
 	if a.Min == nil || a.Max == nil {
 		return true
 	}
@@ -303,6 +346,12 @@ func (a *PlotArea) ContainsXZ(x, z int) bool {
 // PlotAt returns the Plot at block coordinates (x, z), including merged road/wall segments
 // between two merged plots. Returns nil if on an unmerged road/wall or outside the area.
 func (a *PlotArea) PlotAt(x, z int) *Plot {
+	if a.Type == AreaSingle {
+		if a.SingleID == nil {
+			return nil
+		}
+		return a.GetOrCreatePlot(*a.SingleID)
+	}
 	if !a.ContainsXZ(x, z) || a.Size <= 0 {
 		return nil
 	}

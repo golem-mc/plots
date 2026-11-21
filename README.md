@@ -125,6 +125,7 @@ Prefix any subcommand with `<X;Z>` or `<world;X;Z>` to target a specific plot (e
 | `/plot load <schematic>` | `restore` | Paste a saved schematic into your plot | `plots.load` |
 | `/plot backup <save \| list \| load <#>>` | — | Save, list, or restore per-plot backups | `plots.backup`, `plots.backup.<action>` |
 | `/plot createroadschematic` | `crs` | Capture custom road schematics from the current plot | `plots.createroadschematic` |
+| `/plot debugimportworlds` | — | Import existing single plot worlds as plots owned by the server | `plots.admin` |
 | `/plot debugroadregen <plot \| region>` | — | Regenerate roads around a plot or nearby chunks | `plots.debugroadregen` |
 | `/plot debugallowunsafe` | — | Toggle unsafe actions for yourself | `plots.debugallowunsafe` |
 | `/plot debugexec <analyze \| calibrate-analysis <percent> \| start-expire \| stop-expire \| remove-flag <flag> \| start-rgar <world> \| stop-rgar>` | `exec`, `$` | Multi-purpose debug command: analyze the plot you stand in, start or stop the expiry task, remove a flag from every plot, or regenerate a world's roads in the background | `plots.admin` |
@@ -172,6 +173,7 @@ All configuration files live under `plugins/plots/`:
   - `enabled_components.worldedit-restrictions` (`true`), `economy` (`true`), `plot-expiry` (`false`)
   - `auto_clear` — plot expiry schedules (`days`, `threshold`, `worlds`, `calibration`)
 - `plugins/plots/config/worlds.yml` — per-world and partial-area geometry (`plot.size: 42`, `road.width: 7`, `plot.height: 62`, `plot.floor: minecraft:grass_block`, `plot.filling: minecraft:stone`, `road.block: minecraft:quartz_block`, `wall.block: minecraft:smooth_stone_slab`, `wall.block_claimed: minecraft:sandstone_slab`, `economy.use`, `economy.prices`, `flags`, `road.flags`, `areas`).
+- Single plot mode: add a world named `"*"` with `generator.type: SINGLE` to `worlds.yml`. Each claimed plot (`/plot auto`) then gets its own dimension named `x,y`, a flat world that is entirely that plot; its world is unloaded when empty, and `/plot clear` or `/plot delete` regenerates it.
 - `plugins/plots/config/storage.yml` — SQLite database file (`sqlite.db: storage`, optional table `prefix`).
 - `plugins/plots/lang/messages_en.json` — editable MiniMessage translations (written on first run).
 

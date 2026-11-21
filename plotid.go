@@ -322,6 +322,8 @@ const (
 	AreaNormal    PlotAreaType = 0
 	AreaAugmented PlotAreaType = 1
 	AreaPartial   PlotAreaType = 2
+	// AreaSingle is PlotSquared's SinglePlotArea: every plot lives in its own dimension.
+	AreaSingle PlotAreaType = 3
 )
 
 func (t PlotAreaType) String() string {
@@ -330,6 +332,8 @@ func (t PlotAreaType) String() string {
 		return "AUGMENTED"
 	case AreaPartial:
 		return "PARTIAL"
+	case AreaSingle:
+		return "SINGLE"
 	default:
 		return "NORMAL"
 	}
@@ -344,6 +348,8 @@ func ParsePlotAreaType(s string) (PlotAreaType, bool) {
 		return AreaAugmented, true
 	case "2", "partial", "vanilla":
 		return AreaPartial, true
+	case "3", "single":
+		return AreaSingle, true
 	default:
 		return AreaNormal, false
 	}

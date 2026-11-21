@@ -51,6 +51,10 @@ func (m *Manager) Save(w plugin.World, area *plots.PlotArea, plot *plots.Plot) (
 	if plot.IsMerged() {
 		return Entry{}, fmt.Errorf("merged plots cannot be backed up")
 	}
+	if area.Type == plots.AreaSingle {
+		// The plot is a whole dimension: there is no bounded region to save.
+		return Entry{}, fmt.Errorf("single plots cannot be backed up")
+	}
 	dir := m.plotDir(plot)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return Entry{}, err

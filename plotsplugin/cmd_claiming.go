@@ -277,6 +277,11 @@ func (ps *Plugin) cmdClaim(c *cmdCtx) {
 func (ps *Plugin) cmdAuto(c *cmdCtx) {
 	p := c.player
 	area := ps.currentArea(c)
+	if area == nil || area.Type == plots.AreaSingle {
+		if t := ps.singleTemplate(); t != nil {
+			area = t
+		}
+	}
 	if area == nil {
 		ps.sendCaption(p, "errors.not_in_plot_world")
 		return
@@ -349,6 +354,9 @@ func (ps *Plugin) cmdAuto(c *cmdCtx) {
 	}
 
 	claimed, err := ps.AutoClaim(area, p.UUID(), p, sizeX, sizeZ)
+	if err == nil {
+		area = claimed.Area
+	}
 	if err != nil {
 		if totalCost > 0 {
 			if eco, ok := ps.Economy(); ok {
