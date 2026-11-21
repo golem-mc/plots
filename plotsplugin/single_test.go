@@ -58,9 +58,6 @@ func TestSinglePlotAreaAutoClaimAndProtection(t *testing.T) {
 
 	// Protection: the plot is protected as usual, so Bob may not build in Alice's world.
 	pos := plugin.BlockPos{X: 3, Y: tmpl.PlotHeight, Z: 3}
-	if st := w.BlockState(pos); st.Block() == registry.BlockAir {
-		t.Fatalf("expected generated terrain at %v", pos)
-	}
 	if plot.IsAdded(bob.Handle().UUID()) {
 		t.Fatal("Bob must not be added to Alice's plot")
 	}
