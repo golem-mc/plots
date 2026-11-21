@@ -89,13 +89,13 @@ Framework/support classes (`Argument`, `CmdConfirm`, `CmdInstance`, `Command`, `
 | `CreateRoadSchematic.java` | `plotsplugin/cmd_schematics_backups.go` (`/plot createroadschematic`) | `TestSchematicsBackupsTemplatesPurgeCondenseAndExpiry`, `TestGeneratorWorldOps` |
 | `DatabaseCommand.java` | `plotsplugin/cmd_admin.go` (`/plot database`, SQLite status; MySQL omitted) | `TestSchematicsBackupsTemplatesPurgeCondenseAndExpiry` |
 | `Debug.java` | `plotsplugin/cmd_admin.go` (`/plot debug`) | `TestSchematicsBackupsTemplatesPurgeCondenseAndExpiry` |
-| `DebugAllowUnsafe.java` | Not ported yet | Tracked in golem-mc/plots#15 |
-| `DebugExec.java` | Not ported yet | Tracked in golem-mc/plots#15 |
+| `DebugAllowUnsafe.java` | `plotsplugin/cmd_debug.go` (`/plot debugallowunsafe`) | `TestDebugAllowUnsafeExecLoadAndSaveTests` |
+| `DebugExec.java` | `plotsplugin/cmd_debug.go` (`/plot debugexec`) | `TestDebugAllowUnsafeExecLoadAndSaveTests` |
 | `DebugImportWorlds.java` | Depends on `SinglePlotArea` | Tracked in golem-mc/plots#12 |
-| `DebugLoadTest.java` | Not ported yet | Tracked in golem-mc/plots#15 |
+| `DebugLoadTest.java` | `plotsplugin/cmd_debug.go` (`/plot debugloadtest`) | `TestDebugAllowUnsafeExecLoadAndSaveTests` |
 | `DebugPaste.java` | Deliberately omitted (external web paste service) | See Decisions above |
 | `DebugRoadRegen.java` | `plotsplugin/cmd_schematics_backups.go` (`/plot debugroadregen`) | `TestSchematicsBackupsTemplatesPurgeCondenseAndExpiry` |
-| `DebugSaveTest.java` | Not ported yet | Tracked in golem-mc/plots#15 |
+| `DebugSaveTest.java` | `plotsplugin/cmd_debug.go` (`/plot debugsavetest`) | `TestDebugAllowUnsafeExecLoadAndSaveTests` |
 | `Delete.java` | `plotsplugin/cmd_claiming.go` (`/plot delete`) | `TestConfirmMergeUnlinkClearDeleteGrantAndCopySwap` |
 | `Deny.java` | `plotsplugin/cmd_members_tp.go` (`/plot deny`) | `TestCorePlotCommandsClaimTrustFlagsAndTeleport`, `TestProtectionMatrixRolesAndLocations` |
 | `Desc.java` | `plotsplugin/cmd_info_flags.go` (`/plot desc`) | `TestCorePlotCommandsClaimTrustFlagsAndTeleport`, `TestCommandsSetComponentsToggleDislikeInboxClusterAndAdmin` |

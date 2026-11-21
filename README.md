@@ -126,6 +126,10 @@ Prefix any subcommand with `<X;Z>` or `<world;X;Z>` to target a specific plot (e
 | `/plot backup <save \| list \| load <#>>` | — | Save, list, or restore per-plot backups | `plots.backup`, `plots.backup.<action>` |
 | `/plot createroadschematic` | `crs` | Capture custom road schematics from the current plot | `plots.createroadschematic` |
 | `/plot debugroadregen <plot \| region>` | — | Regenerate roads around a plot or nearby chunks | `plots.debugroadregen` |
+| `/plot debugallowunsafe` | — | Toggle unsafe actions for yourself | `plots.debugallowunsafe` |
+| `/plot debugexec <analyze \| calibrate-analysis <percent> \| start-expire \| stop-expire \| remove-flag <flag> \| start-rgar <world> \| stop-rgar>` | `exec`, `$` | Multi-purpose debug command: analyze the plot you stand in, start or stop the expiry task, remove a flag from every plot, or regenerate a world's roads in the background | `plots.admin` |
+| `/plot debugloadtest` | — | Reload all plots from the database (console only) | `plots.debugloadtest` |
+| `/plot debugsavetest` | — | Rewrite all plots to the database (console only) | `plots.debugsavetest` |
 | `/plot regenallroads <world>` | `rgar` | Regenerate roads across a plot world | `plots.regenallroads` |
 
 ### Administration & Maintenance

@@ -86,6 +86,7 @@ func (ps *Plugin) registerCommands() {
 	ps.registerSocialAndClusterCommands()
 	ps.registerSchematicAndBackupCommands()
 	ps.registerAdminCommands()
+	ps.registerDebugCommands()
 	ps.registerMusicInventoryListener()
 
 	run := func(ctx *plugin.CommandContext) (int, error) {

@@ -955,3 +955,70 @@ func parseTimestampMillis(raw any) int64 {
 	}
 	return time.Now().UnixMilli()
 }
+
+// ResavePlot rewrites plot p's row, settings, flags and trusted/member/denied
+// lists from memory (upstream DBFunc.createPlotsAndData for an existing
+// database). Ratings and comments are left as they are. flags maps flag names
+// to their serialized values.
+func (d *DB) ResavePlot(p *plots.Plot, flags map[string]string) error {
+	if p.DBID == 0 {
+		d.mu.Lock()
+		id, err := d.resolvePlotIDLocked(p)
+		d.mu.Unlock()
+		if err != nil {
+			return err
+		}
+		if id == 0 {
+			if err := d.CreatePlot(p); err != nil {
+				return err
+			}
+		}
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	ts := time.UnixMilli(p.Timestamp).UTC().Format("2006-01-02 15:04:05")
+	if _, err := tx.Exec(`UPDATE `+d.t("plot")+` SET owner = ?, timestamp = ? WHERE id = ?`, p.Owner.String(), ts, p.DBID); err != nil {
+		return err
+	}
+	var alias any
+	if p.Settings.Alias != "" {
+		alias = p.Settings.Alias
+	}
+	if _, err := tx.Exec(
+		`INSERT INTO `+d.t("plot_settings")+` (plot_plot_id, alias, merged, position) VALUES (?, ?, ?, ?)
+		 ON CONFLICT(plot_plot_id) DO UPDATE SET alias = excluded.alias, merged = excluded.merged, position = excluded.position`,
+		p.DBID, alias, plots.HashMerged(p.Settings.Merged), p.Settings.Position.String(),
+	); err != nil {
+		return err
+	}
+	for _, t := range []string{"plot_helpers", "plot_trusted", "plot_denied"} {
+		if _, err := tx.Exec(`DELETE FROM `+d.t(t)+` WHERE plot_plot_id = ?`, p.DBID); err != nil {
+			return err
+		}
+	}
+	tiers := []struct {
+		table string
+		set   map[uuid.UUID]struct{}
+	}{{"plot_helpers", p.Trusted}, {"plot_trusted", p.Members}, {"plot_denied", p.Denied}}
+	for _, tier := range tiers {
+		for u := range tier.set {
+			if _, err := tx.Exec(`INSERT INTO `+d.t(tier.table)+` (plot_plot_id, user_uuid) VALUES (?, ?)`, p.DBID, u.String()); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := tx.Exec(`DELETE FROM `+d.t("plot_flags")+` WHERE plot_id = ?`, p.DBID); err != nil {
+		return err
+	}
+	for name, val := range flags {
+		if _, err := tx.Exec(`INSERT INTO `+d.t("plot_flags")+` (plot_id, flag, value) VALUES (?, ?, ?)`, p.DBID, strings.ToLower(name), val); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}

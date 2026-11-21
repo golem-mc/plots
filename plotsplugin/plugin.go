@@ -66,6 +66,11 @@ type Plugin struct {
 	levelOnce       sync.Once
 	levelName       string
 	legacyOnce      sync.Once
+
+	dbgMu         sync.Mutex
+	unsafeAllowed map[uuid.UUID]struct{}
+	expiryTask    plugin.Task
+	rgarTask      plugin.Task
 }
 
 var current struct {

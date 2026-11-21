@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golem-mc/plots"
 	"github.com/golem-mc/plots/internal/generator"
 	"github.com/golem-mc/plots/internal/lang"
 	westorage "github.com/golem-mc/worldedit/storage"
@@ -439,19 +440,27 @@ func (ps *Plugin) cmdRegenAllRoads(c *cmdCtx) {
 	}
 	gen := ps.generatorForArea(area)
 	gen.Reload(ps.Server.DataDir(), ps.Settings)
+	for _, ck := range roadChunks(area) {
+		generator.RegenRoadChunk(w, area, gen, ck[0], ck[1])
+	}
+	ps.sendCaption(c.sender, "debugroadregen.regen_done", "value", area.WorldName)
+}
+
+// roadChunks lists the chunks touching the roads around every plot of area.
+func roadChunks(area *plots.PlotArea) [][2]int {
 	seen := make(map[[2]int]bool)
+	var out [][2]int
 	for _, pl := range area.BasePlots() {
 		b := area.PlotInteriorBounds(pl.ID)
 		for cx := (b.Min.X - area.RoadWidth) >> 4; cx <= (b.Max.X+area.RoadWidth)>>4; cx++ {
 			for cz := (b.Min.Z - area.RoadWidth) >> 4; cz <= (b.Max.Z+area.RoadWidth)>>4; cz++ {
 				key := [2]int{cx, cz}
-				if seen[key] {
-					continue
+				if !seen[key] {
+					seen[key] = true
+					out = append(out, key)
 				}
-				seen[key] = true
-				generator.RegenRoadChunk(w, area, gen, cx, cz)
 			}
 		}
 	}
-	ps.sendCaption(c.sender, "debugroadregen.regen_done", "value", area.WorldName)
+	return out
 }
