@@ -107,8 +107,13 @@ func (g *HybridGenerator) Reload(dataDir string, settings *config.Settings) {
 					plotY = 0
 				}
 			}
-			if s1 != nil && s2 != nil {
-				roadSchemH = max(s1.Height, s2.Height)
+			if s1 != nil || s2 != nil {
+				if s1 != nil {
+					roadSchemH = max(roadSchemH, s1.Height)
+				}
+				if s2 != nil {
+					roadSchemH = max(roadSchemH, s2.Height)
+				}
 				if roadSchemH == worldGenHeight || !pasteRoadOnTop {
 					schemY = a.MinGenHeight
 					roadY = 0
@@ -149,38 +154,43 @@ func (g *HybridGenerator) Reload(dataDir string, settings *config.Settings) {
 				}
 			}
 
-			if s1 != nil && s2 != nil && a.RoadWidth > 0 && maxH > 0 {
+			if (s1 != nil || s2 != nil) && a.RoadWidth > 0 && maxH > 0 {
 				roadSchemEnabled = true
-				// Sideroad (unrotated + rotated 90 deg CW for perpendicular road)
-				for x := 0; x < s1.Width; x++ {
-					for z := 0; z < s1.Length; z++ {
-						rx1 := plots.FloorMod(x-shift, a.Size)
-						rz1 := plots.FloorMod(z+shift+oddShift, a.Size)
-						rx2 := plots.FloorMod(z+shift+oddShift, a.Size)
-						rz2 := plots.FloorMod(shift-x+(oddShift-1), a.Size)
-						for y := 0; y < s1.Height; y++ {
-							st := s1.GetRel(x, y, z)
-							addOverlay(overlayBlocks, rx1, y+roadY, rz1, st, maxH)
-							addOverlay(overlayBlocks, rx2, y+roadY, rz2, block.RotateStateY(st, 90), maxH)
-						}
-						if len(s1.Biomes) > 0 {
-							b := s1.GetRelBiome(x, 0, z)
-							overlayBiomes[pairXZ(rx1, rz1)] = b
-							overlayBiomes[pairXZ(rx2, rz2)] = b
+				if s1 != nil {
+					// Sideroad: unrotated along Z, and rotated 90 deg CCW (270 deg CW,
+					// matching upstream WorldEdit AffineTransform.rotateY(90)) for the perpendicular road.
+					for x := 0; x < s1.Width; x++ {
+						for z := 0; z < s1.Length; z++ {
+							rx1 := plots.FloorMod(x-shift, a.Size)
+							rz1 := plots.FloorMod(z+shift+oddShift, a.Size)
+							rx2 := plots.FloorMod(z+shift+oddShift, a.Size)
+							rz2 := plots.FloorMod(shift-x+(oddShift-1), a.Size)
+							for y := 0; y < s1.Height; y++ {
+								st := s1.GetRel(x, y, z)
+								addOverlay(overlayBlocks, rx1, y+roadY, rz1, st, maxH)
+								addOverlay(overlayBlocks, rx2, y+roadY, rz2, block.RotateStateY(st, 270), maxH)
+							}
+							if len(s1.Biomes) > 0 {
+								b := s1.GetRelBiome(x, 0, z)
+								overlayBiomes[pairXZ(rx1, rz1)] = b
+								overlayBiomes[pairXZ(rx2, rz2)] = b
+							}
 						}
 					}
 				}
-				// Intersection
-				for x := 0; x < s2.Width; x++ {
-					for z := 0; z < s2.Length; z++ {
-						rx := plots.FloorMod(x-shift, a.Size)
-						rz := plots.FloorMod(z-shift, a.Size)
-						for y := 0; y < s2.Height; y++ {
-							st := s2.GetRel(x, y, z)
-							addOverlay(overlayBlocks, rx, y+roadY, rz, st, maxH)
-						}
-						if len(s2.Biomes) > 0 {
-							overlayBiomes[pairXZ(rx, rz)] = s2.GetRelBiome(x, 0, z)
+				if s2 != nil {
+					// Intersection
+					for x := 0; x < s2.Width; x++ {
+						for z := 0; z < s2.Length; z++ {
+							rx := plots.FloorMod(x-shift, a.Size)
+							rz := plots.FloorMod(z-shift, a.Size)
+							for y := 0; y < s2.Height; y++ {
+								st := s2.GetRel(x, y, z)
+								addOverlay(overlayBlocks, rx, y+roadY, rz, st, maxH)
+							}
+							if len(s2.Biomes) > 0 {
+								overlayBiomes[pairXZ(rx, rz)] = s2.GetRelBiome(x, 0, z)
+							}
 						}
 					}
 				}
@@ -313,7 +323,11 @@ func (g *HybridGenerator) Generate(c plugin.ChunkWriter, rng plugin.Random) {
 	}
 
 	roadH := min(a.RoadHeight, maxGenY)
-	wallH := min(a.WallHeight, maxGenY)
+	wallMaxY := maxGenY
+	if a.PlaceTopBlock {
+		wallMaxY = maxGenY - 1
+	}
+	wallH := min(a.WallHeight, wallMaxY)
 	plotH := min(a.PlotHeight, maxGenY)
 
 	for x := range 16 {
@@ -334,7 +348,7 @@ func (g *HybridGenerator) Generate(c plugin.ChunkWriter, rng plugin.Random) {
 					c.Set(x, y, z, wallFill.Pick(rng))
 				}
 				if !roadSchem {
-					if a.PlaceTopBlock && wallH+1 <= cMaxY {
+					if a.PlaceTopBlock && wallH+1 <= maxGenY {
 						c.Set(x, wallH+1, z, wallTop.Pick(rng))
 					}
 				} else {
