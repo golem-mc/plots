@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/golem-mc/golem/plugin"
 	"github.com/golem-mc/golem/registry"
@@ -703,9 +704,11 @@ func SafePlotHome(w plugin.World, area *plots.PlotArea, plot *plots.Plot, isMemb
 		// The plot is the whole dimension: stand at its origin.
 		ty = safeYAt(w, 0, 0, area.PlotHeight+1)
 	default:
-		// Default side of plot on the northern road looking south into the plot
-		tx = bMin.X + area.PlotWidth/2
-		tz = bMin.Z - 2
+		// PlotSquared's getSide: midpoint of the largest merged rectangle, one block
+		// north of its minimum Z, looking south into the plot.
+		lMin, lMax := largestMergedRegion(area, base)
+		tx = (lMin.X + lMax.X) / 2
+		tz = lMin.Z - 1
 		ty = safeYAt(w, tx, tz, area.RoadHeight+1)
 		yaw = 0
 	}
@@ -756,6 +759,59 @@ func mergedOuterBounds(area *plots.PlotArea, base *plots.Plot) (minP, maxP plugi
 		maxP.X = max(maxP.X, r.Max.X)
 		maxP.Y = max(maxP.Y, r.Max.Y)
 		maxP.Z = max(maxP.Z, r.Max.Z)
+	}
+	return minP, maxP
+}
+
+// largestMergedRegion returns the largest-area rectangle fully covered by the
+// plot's component boxes (plots and merged roads), like PlotSquared's
+// getLargestRegion over its merged rectangles.
+func largestMergedRegion(area *plots.PlotArea, base *plots.Plot) (minP, maxP plugin.BlockPos) {
+	regs := area.PlotRegions(base)
+	var xs, zs []int
+	for _, r := range regs {
+		xs = append(xs, r.Min.X, r.Max.X+1)
+		zs = append(zs, r.Min.Z, r.Max.Z+1)
+	}
+	slices.Sort(xs)
+	slices.Sort(zs)
+	xs = slices.Compact(xs)
+	zs = slices.Compact(zs)
+	covered := func(x0, x1, z0, z1 int) bool {
+		for xi := x0; xi < x1; xi++ {
+			for zi := z0; zi < z1; zi++ {
+				ok := false
+				for _, r := range regs {
+					if r.Min.X <= xs[xi] && xs[xi+1]-1 <= r.Max.X && r.Min.Z <= zs[zi] && zs[zi+1]-1 <= r.Max.Z {
+						ok = true
+						break
+					}
+				}
+				if !ok {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	best := -1
+	for x0 := range xs {
+		for x1 := x0 + 1; x1 < len(xs); x1++ {
+			for z0 := range zs {
+				for z1 := z0 + 1; z1 < len(zs); z1++ {
+					a := (xs[x1] - xs[x0]) * (zs[z1] - zs[z0])
+					if a <= best || !covered(x0, x1, z0, z1) {
+						continue
+					}
+					best = a
+					minP = plugin.BlockPos{X: xs[x0], Z: zs[z0]}
+					maxP = plugin.BlockPos{X: xs[x1] - 1, Z: zs[z1] - 1}
+				}
+			}
+		}
+	}
+	if best < 0 {
+		return mergedOuterBounds(area, base)
 	}
 	return minP, maxP
 }
