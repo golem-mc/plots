@@ -10,7 +10,7 @@ require (
 	github.com/golem-mc/worldedit v0.1.0
 	github.com/google/uuid v1.6.0
 	go.yaml.in/yaml/v4 v4.0.0
-	modernc.org/sqlite v1.62.0
+	modernc.org/sqlite v1.63.0
 )
 
 require (
